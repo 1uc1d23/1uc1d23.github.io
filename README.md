@@ -1,17 +1,7 @@
 # Al-Qur'an — القرآن
 
-<table align="center" style="border-collapse: collapse;">
-  <tr>
-    <td style="border: none; padding-right: 20px; text-align: center;">
-      <img src="assets/sample_dark.png" width="180px"><br>
-      <small>Dark Theme</small>
-    </td>
-    <td style="border: none; padding-left: 20px; text-align: center;">
-      <img src="assets/sample_sunset.png" width="180px"><br>
-      <small>Sunset Theme</small>
-    </td>
-  </tr>
-</table>
+![Dark Theme](assets/sample_dark.png){: style="height:180px"}
+![Sunset Theme](assets/sample_sunset.png){: style="height:180px"}
 
 ## Overview
 - A lightweight, keyboard-friendly Quran page viewer with fast preloading, page navigation.  
