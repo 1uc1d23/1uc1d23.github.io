@@ -1,13 +1,21 @@
 # Al-Qur'an — القرآن
 
-
-![Dark Theme](assets/sample_dark.png){ height="180px" }
-![Sunset Theme](assets/sample_sunset.png){ height="180px" }
+## Preview
+<p align="center">
+  <img src="assets/sample_dark.png" width="220px" style="display:inline-block;">
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/sample_sunset.png" width="220px" style="display:inline-block;">
+</p>
 
 ## Overview
 - A lightweight, keyboard-friendly Quran page viewer with fast preloading, page navigation.  
 - Includes a top-right Settings panel with theme samples and a Surah/Page navigator that reads metadata remotely.  
 - Built as a single static HTML/CSS/JS bundle suitable for GitHub Pages hosting.
+
+## Controls
+- `/` opens Navigate
+- `O` toggles Settings
+- `<` `>` arrow keys navigate pages
 
 ## Demo (local)
 - Open `quran.html` in your browser or serve the folder with a static server to preview the app locally.
