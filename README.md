@@ -14,8 +14,13 @@
 
 ## Controls
 - `/` opens Navigate
-- `O` toggles Settings
+- `o` toggles Settings
 - `<` `>` arrow keys navigate pages
+
+<p align="center">
+  <img src="assets/image.png" height="300px" style="display:inline-block;"><br>
+  Press <b>o</b> on keyboard to toggle Settings menu
+</p>
 
 ## Get Started
 - Open `quran.html` in your browser or serve the folder with a static server to preview the app locally.
