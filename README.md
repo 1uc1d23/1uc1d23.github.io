@@ -1,18 +1,18 @@
 # Al-Qur'an — القرآن
 
-<p align="center" style="display: flex; justify-content: center; gap: 20px; align-items: center;">
+<div align="center">
 
-  <span style="text-align: center;">
+  <div style="display: inline-block; margin: 0 15px; text-align: center;">
     <img src="assets/sample_dark.png" width="180px"><br>
     <small>Dark Theme</small>
-  </span>
+  </div>
 
-  <span style="text-align: center;">
+  <div style="display: inline-block; margin: 0 15px; text-align: center;">
     <img src="assets/sample_sunset.png" width="180px"><br>
     <small>Sunset Theme</small>
-  </span>
+  </div>
 
-</p>
+</div>
 
 ## Overview
 - A lightweight, keyboard-friendly Quran page viewer with fast preloading, page navigation.  
