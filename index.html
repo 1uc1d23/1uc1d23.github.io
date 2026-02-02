@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Al-Qur'an — القرآن </title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #0a0a0a;
+      --text: #eee;
+      --muted-text: #b3b3b3;
+      --muted-text-2: #686868;
+      --border: #333;
+      --color-transition: 260ms ease;
+      --max-img-height: 100vh;
+      --max-img-width: 100vw;
+    }
+
+    .theme-sunset {
+      --bg: #fff7eb;
+      --panel: #fff5eb;
+      --text: #0a0a0a;
+      --muted-text: #333;
+      --muted-text-2: #a39789;
+      --border: #e6d5c0;
+    }
+
+    :root::selection {
+      background: #2ca4ab;
+      color: #f9f9f9;
+    }
+
+    .theme-sunset::selection {
+      background: #72603f;
+      color: #f9f9f9;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      transition: background var(--color-transition), color var(--color-transition);
+    }
+
+    * {
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    /* viewer area */
+    #viewer {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: pan-y;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* single page image (centered) - drop shadow removed */
+    #pageImg {
+      max-height: var(--max-img-height);
+      max-width: var(--max-img-width);
+      height: auto;
+      width: auto;
+      object-fit: contain;
+      user-select: none;
+      -webkit-user-drag: none;
+      image-rendering: auto;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      transform: translateZ(0);
+      pointer-events: none;
+      background: transparent;
+      display: block;
+      margin: auto;
+      box-shadow: none;
+      /* removed as requested */
+      transition: filter var(--color-transition);
+    }
+
+    /* invert main page images in dark mode, no inversion in sunset mode */
+    body:not(.theme-sunset) #pageImg {
+      filter: invert(1) saturate(0.95) contrast(1);
+    }
+
+    body.theme-sunset #pageImg {
+      filter: none;
+    }
+
+    /* Page menu (bottom-right slide) */
+    #menuOverlay {
+      position: fixed;
+      inset: 0;
+      display: block;
+      z-index: 9999;
+      background: transparent;
+      -webkit-tap-highlight-color: transparent;
+      pointer-events: none;
+    }
+
+    #menu {
+      position: absolute;
+      right: 20px;
+      bottom: 20px;
+      background: var(--panel);
+      color: var(--text);
+      padding: 16px;
+      border-radius: 12px;
+      width: min(280px, 92%);
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+      transform: translate(120%, 120%);
+      opacity: 0;
+      transition: transform 360ms cubic-bezier(.2, .9, .2, 1), opacity 260ms ease, background var(--color-transition), color var(--color-transition), border-color var(--color-transition);
+      will-change: transform, opacity;
+      pointer-events: auto;
+    }
+
+    #menuOverlay.open {
+      pointer-events: auto;
+    }
+
+    #menuOverlay.open #menu {
+      transform: translate(0, 0);
+      opacity: 1;
+    }
+
+    #menu h2 {
+      margin: 0 0 8px 0;
+      font-weight: 600;
+      font-size: 18px;
+      text-align: center;
+      color: var(--text);
+    }
+
+    #menu p {
+      margin: 0 0 12px 0;
+      font-size: 13px;
+      color: var(--muted-text);
+      text-align: center;
+    }
+
+    #pageInput {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      font-size: 16px;
+      text-align: center;
+      outline: none;
+      box-sizing: border-box;
+    }
+
+    #goBtn {
+      box-sizing: border-box;
+      border: 0;
+      border-radius: 999px;
+      color: var(--text);
+      cursor: pointer;
+      padding: 10px 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      display: flex;
+      transition: 0.2s background;
+      align-items: center;
+      gap: 0.6em;
+      font-weight: bold;
+      margin: auto;
+    }
+
+    #menuSmallNote {
+      margin-top: 8px;
+      font-size: 10px;
+      text-align: center;
+      color: var(--muted-text-2);
+    }
+
+    /* Settings panel (top-right slide) */
+    #settingsOverlay {
+      position: fixed;
+      inset: 0;
+      display: block;
+      z-index: 9998;
+      background: transparent;
+      pointer-events: none;
+    }
+
+    #settingsPanel {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      background: var(--panel);
+      color: var(--text);
+      padding: 16px;
+      border-radius: 12px;
+      width: min(300px, 92%);
+      border: 1px solid var(--border);
+      box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
+      transform: translate(120%, -120%);
+      opacity: 0;
+      transition: transform 360ms cubic-bezier(.2, .9, .2, 1), opacity 260ms ease, background var(--color-transition), color var(--color-transition), border-color var(--color-transition);
+      will-change: transform, opacity;
+      pointer-events: auto;
+    }
+
+    #settingsOverlay.open {
+      pointer-events: auto;
+    }
+
+    #settingsOverlay.open #settingsPanel {
+      transform: translate(0, 0);
+      opacity: 1;
+    }
+
+    #settingsPanel h3 {
+      margin: 0 0 12px 0;
+      font-weight: 600;
+      font-size: 16px;
+      color: var(--text);
+    }
+
+    .theme-section {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* square sample buttons */
+    .theme-sample {
+      width: 96px;
+      height: 96px;
+      border-radius: 8px;
+      padding: 5px;
+      border: none;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    .theme-sample img {
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .theme-sample.active {
+      border: 1px solid var(--border);
+    }
+
+    /* labels under samples */
+    .theme-labels {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 8px;
+      color: var(--muted-text-2);
+      font-size: 10px;
+    }
+
+    .theme-labels div {
+      width: 96px;
+      text-align: center;
+    }
+
+    @media (max-width:420px) {
+      .label {
+        font-size: 13px;
+        padding: 6px 8px;
+      }
+    }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    input[type=number] {
+      color-scheme: dark;
+    }
+  </style>
+</head>
+
+<body class="theme-dark">
+  <div id="viewer" aria-live="polite" tabindex="0">
+    <img id="pageImg" alt="Quran page" src="" />
+  </div>
+
+  <!-- Page Menu overlay toggled by pressing '/' -->
+  <div id="menuOverlay" aria-hidden="true">
+    <div id="menu" role="dialog" aria-modal="true" aria-labelledby="menuHeading">
+      <h2 id="menuHeading">Go to page</h2>
+      <p>Enter a page number.</p>
+      <input id="pageInput" type="number" min="1" max="604" inputmode="numeric" aria-label="Page number"
+        placeholder="42" />
+      <button id="goBtn" type="button">Turn to page<div style="width:10px;height:1px;margin-left:8px"></div></button>
+      <div id="menuSmallNote">Press <b>ESC</b> to close this menu.</div>
+    </div>
+  </div>
+
+  <!-- Settings Panel toggled by pressing 'O' -->
+  <div id="settingsOverlay" aria-hidden="true">
+    <div id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsHeading">
+      <h3 id="settingsHeading">Settings</h3>
+      <div class="section">
+        <div style="margin-bottom:8px;font-size:13px;color:var(--muted-text);">Theme</div>
+        <div class="theme-section">
+          <button class="theme-sample sample-dark" id="btnDark" title="Dark theme" aria-pressed="false">
+            <img src="assets/sample_dark.png" alt="Dark sample" />
+          </button>
+          <button class="theme-sample sample-sunset" id="btnSunset" title="Sunset theme" aria-pressed="false">
+            <img src="assets/sample_sunset.png" alt="Sunset sample" />
+          </button>
+        </div>
+        <div class="theme-labels">
+          <div>Dark</div>
+          <div>Sunset</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+  const TOTAL_PAGES = 604;
+  const pageImg = document.getElementById('pageImg');
+  let current = 1;
+  const imageCache = new Map(); // page -> Image
+  const CACHE_LIMIT = 60;
+
+  // controlled repeat state
+  let repeating = false;
+  let repeatDir = 0; // +1 or -1
+  let repeatTimeout = null;
+  let repeatInterval = null;
+  const INITIAL_REPEAT_DELAY = 200; // ms before continuous repeat begins
+  const REPEAT_INTERVAL_MS = 80;    // ms between pages while holding
+
+  // ---------- Image loading helpers ----------
+  function preload(page) {
+    if (page < 1 || page > TOTAL_PAGES) return;
+    if (imageCache.has(page)) return;
+    const im = new Image();
+    im.decoding = 'async';
+    im.loading = 'lazy';
+    im.src = `pages/${page}.png`;
+    im.onload = () => imageCache.set(page, im);
+    im.onerror = () => { /* ignore */ };
+  }
+
+  function preloadRange(center, before = 2, after = 4) {
+    for (let i = center - before; i <= center + after; i++) preload(i);
+  }
+
+  function trimCache(center) {
+    if (imageCache.size <= CACHE_LIMIT) return;
+    // sort by distance and remove farthest
+    const pages = Array.from(imageCache.keys()).sort((a, b) => Math.abs(a - center) - Math.abs(b - center));
+    while (imageCache.size > CACHE_LIMIT) {
+      const toRemove = pages.pop();
+      imageCache.delete(toRemove);
+    }
+  }
+
+  function loadImage(page, cb) {
+    if (page < 1 || page > TOTAL_PAGES) return cb(new Error('out-of-range'));
+    const cached = imageCache.get(page);
+    if (cached && cached.src) return cb(null, cached.src);
+
+    const im = new Image();
+    im.decoding = 'async';
+    im.loading = 'eager';
+    im.src = `pages/${page}.png`;
+    let done = false;
+
+    im.onload = () => {
+      if (done) return;
+      done = true;
+      try { imageCache.set(page, im); } catch (e) { /* ignore */ }
+      cb(null, im.src);
+    };
+    im.onerror = () => {
+      if (done) return;
+      done = true;
+      cb(new Error('failed to load'));
+    };
+
+    // try to decode early where supported (non-blocking)
+    if (typeof im.decode === 'function') {
+      im.decode().catch(() => { /* ignore decode failures; onload will handle it */ });
+    }
+  }
+
+  function setPageImg(page){
+        if(page < 1 || page > TOTAL_PAGES) return;
+        const cached = imageCache.get(page);
+        if(cached && cached.src){
+          pageImg.src = cached.src;
+        } else {
+          pageImg.loading = 'eager';
+          pageImg.decoding = 'async';
+          pageImg.src = `pages/${page}.png`;
+        }
+      }
+
+  // ---------- Page navigation ----------
+  function showPage(target, direction = 0) {
+    if (target < 1 || target > TOTAL_PAGES) return;
+    setPageImg(target);
+    current = target;
+    if (direction > 0) preloadRange(target, 1, 6);
+    else if (direction < 0) preloadRange(target, 6, 1);
+    else preloadRange(target, 2, 4);
+    trimCache(current);
+  }
+
+  window.showPage = showPage;
+
+  function nextPage() {
+    const targ = current >= TOTAL_PAGES ? 1 : current + 1;
+    showPage(targ, +1);
+  }
+  function prevPage() {
+    const targ = current <= 1 ? TOTAL_PAGES : current - 1;
+    showPage(targ, -1);
+  }
+
+  function step(dir) {
+    if (dir === +1) nextPage();
+    else if (dir === -1) prevPage();
+  }
+
+  // ---------- Controlled key repeat (arrow hold) ----------
+  function startRepeat(dir) {
+    if (repeating) return;
+    repeating = true;
+    repeatDir = dir;
+    // immediate step for instant feedback
+    step(dir);
+    repeatTimeout = setTimeout(() => {
+      repeatInterval = setInterval(() => step(dir), REPEAT_INTERVAL_MS);
+    }, INITIAL_REPEAT_DELAY);
+  }
+
+  function stopRepeat() {
+    repeating = false;
+    repeatDir = 0;
+    if (repeatTimeout) { clearTimeout(repeatTimeout); repeatTimeout = null; }
+    if (repeatInterval) { clearInterval(repeatInterval); repeatInterval = null; }
+  }
+
+  // ---------- UI: menu & settings wiring ----------
+  const menuOverlay = document.getElementById('menuOverlay');
+  const pageInput = document.getElementById('pageInput');
+  const goBtn = document.getElementById('goBtn');
+  const viewer = document.getElementById('viewer');
+  const settingsOverlay = document.getElementById('settingsOverlay');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const btnDark = document.getElementById('btnDark');
+  const btnSunset = document.getElementById('btnSunset');
+
+  if (viewer && !viewer.hasAttribute('tabindex')) viewer.setAttribute('tabindex', '0');
+
+  function openMenu(initialPage) {
+    if (!menuOverlay) return;
+    closeSettings();
+    menuOverlay.classList.add('open');
+    menuOverlay.setAttribute('aria-hidden', 'false');
+    pageInput.value = initialPage ? String(initialPage) : String(current || 1);
+    setTimeout(() => { try { pageInput.focus(); pageInput.select(); } catch (e) {} }, 180);
+  }
+
+  function closeMenu() {
+    if (!menuOverlay) return;
+    try { pageInput.blur(); } catch (e) {}
+    menuOverlay.classList.remove('open');
+    menuOverlay.setAttribute('aria-hidden', 'true');
+    try { viewer.focus(); } catch (e) {}
+  }
+
+  function openSettings() {
+    if (!settingsOverlay) return;
+    closeMenu();
+    settingsOverlay.classList.add('open');
+    settingsOverlay.setAttribute('aria-hidden', 'false');
+    setTimeout(() => { try { settingsPanel.focus(); } catch (e) {} }, 180);
+  }
+
+  function closeSettings() {
+    if (!settingsOverlay) return;
+    settingsOverlay.classList.remove('open');
+    settingsOverlay.setAttribute('aria-hidden', 'true');
+    try { viewer.focus(); } catch (e) {}
+  }
+
+  // click outside to close
+  if (menuOverlay) menuOverlay.addEventListener('click', (e) => { if (e.target === menuOverlay) closeMenu(); });
+  const menuEl = document.getElementById('menu');
+  if (menuEl) menuEl.addEventListener('click', (e) => e.stopPropagation());
+  if (settingsOverlay) settingsOverlay.addEventListener('click', (e) => { if (e.target === settingsOverlay) closeSettings(); });
+  if (settingsPanel) settingsPanel.addEventListener('click', (e) => e.stopPropagation());
+
+  // go button and input behavior
+  if (goBtn) goBtn.addEventListener('click', () => {
+    const v = parseInt(pageInput.value, 10);
+    if (isNaN(v)) return;
+    const target = Math.max(1, Math.min(TOTAL_PAGES, v));
+    showPage(target);
+    closeMenu();
+  });
+  if (pageInput) pageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); goBtn.click(); }
+    else if (e.key === 'Escape') { e.preventDefault(); closeMenu(); }
+  });
+
+  // ---------- Theme (settings) ----------
+  function applyTheme(theme) {
+    const body = document.body;
+    if (theme === 'sunset') {
+      body.classList.add('theme-sunset');
+      body.classList.remove('theme-dark');
+      btnSunset.classList.add('active');
+      btnSunset.setAttribute('aria-pressed', 'true');
+      btnDark.classList.remove('active');
+      btnDark.setAttribute('aria-pressed', 'false');
+    } else {
+      body.classList.remove('theme-sunset');
+      body.classList.add('theme-dark');
+      btnDark.classList.add('active');
+      btnDark.setAttribute('aria-pressed', 'true');
+      btnSunset.classList.remove('active');
+      btnSunset.setAttribute('aria-pressed', 'false');
+    }
+    // when switching themes, ensure the page image swaps correctly according to CSS inversion
+    // (page image inversion is handled by CSS rules on body class)
+  }
+
+  (function initTheme() {
+    if (document.body.classList.contains('theme-sunset')) applyTheme('sunset');
+    else applyTheme('dark');
+  })();
+
+  if (btnDark) btnDark.addEventListener('click', () => applyTheme('dark'));
+  if (btnSunset) btnSunset.addEventListener('click', () => applyTheme('sunset'));
+
+  // ---------- Keyboard wiring (arrows, slash, O, Esc) ----------
+  window.addEventListener('keydown', (ev) => {
+    const active = document.activeElement;
+    // allow ESC to close overlays even when typing
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+      if (ev.key === 'Escape') {
+        if (menuOverlay && menuOverlay.classList.contains('open')) { ev.preventDefault(); closeMenu(); }
+        if (settingsOverlay && settingsOverlay.classList.contains('open')) { ev.preventDefault(); closeSettings(); }
+      }
+      return;
+    }
+
+    // Arrow keys: handle controlled repeat (ignore native ev.repeat)
+    if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
+      ev.preventDefault();
+      if (ev.repeat) return; // only react on initial keydown
+      const dir = ev.key === 'ArrowLeft' ? +1 : -1; // preserve your original mapping
+      startRepeat(dir);
+      return;
+    }
+
+    // slash -> page menu toggle
+    if (ev.key === '/') {
+      ev.preventDefault();
+      if (menuOverlay && menuOverlay.classList.contains('open')) closeMenu(); else openMenu(current);
+      return;
+    }
+
+    // O -> settings toggle
+    if (ev.key === 'o' || ev.key === 'O') {
+      ev.preventDefault();
+      if (settingsOverlay && settingsOverlay.classList.contains('open')) closeSettings(); else openSettings();
+      return;
+    }
+
+    // Escape global fallback (if nothing else caught it)
+    if (ev.key === 'Escape') {
+      if (menuOverlay && menuOverlay.classList.contains('open')) { ev.preventDefault(); closeMenu(); }
+      if (settingsOverlay && settingsOverlay.classList.contains('open')) { ev.preventDefault(); closeSettings(); }
+      return;
+    }
+  }, { passive: false });
+
+  // stop repeating when key is released
+  window.addEventListener('keyup', (ev) => {
+    if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') stopRepeat();
+  }, { passive: true });
+
+  // also stop if window loses focus
+  window.addEventListener('blur', () => stopRepeat(), { passive: true });
+
+  // ---------- Touch (unchanged) ----------
+  let touchStartX = null;
+  const viewerEl = document.getElementById('viewer');
+  if (viewerEl) {
+    viewerEl.addEventListener('touchstart', (e) => { if (e.touches && e.touches[0]) touchStartX = e.touches[0].clientX; }, { passive: true });
+    viewerEl.addEventListener('touchend', (e) => {
+      if (touchStartX === null) return;
+      const endX = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientX : null;
+      if (endX === null) { touchStartX = null; return; }
+      const dx = endX - touchStartX;
+      if (Math.abs(dx) > 30) { if (dx < 0) nextPage(); else prevPage(); }
+      touchStartX = null;
+    }, { passive: true });
+  }
+
+  // ---------- Init / deep-link ----------
+  (function init() {
+    current = 1;
+    preload(current);
+    preload(current + 1);
+    preload(current - 1);
+    setPageImg(current);
+  })();
+
+  (function handleDeepLink() {
+    try {
+      const url = new URL(location.href);
+      const p = parseInt(url.searchParams.get('p') || '', 10);
+      if (!isNaN(p) && p >= 1 && p <= TOTAL_PAGES) showPage(p);
+    } catch (e) { /* ignore */ }
+  })();
+
+})();
+
+  </script>
+</body>
+
+</html>
