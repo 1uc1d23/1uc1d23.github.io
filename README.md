@@ -19,7 +19,7 @@
 - Built as a single static HTML/CSS/JS bundle suitable for GitHub Pages hosting.
 
 ## Demo (local)
-- Open `index.html` in your browser or serve the folder with a static server to preview the app locally.
+- Open `quran.html` in your browser or serve the folder with a static server to preview the app locally.
 
 ## Features
 - Fast image preloading with safe swapping to avoid blank frames on rapid navigation.  
@@ -29,7 +29,7 @@
 - Keyboard shortcuts: `/` opens Navigate, `O` toggles Settings, Arrow keys navigate pages, and `Esc` closes overlays.
 
 ## Required repository structure
-- `index.html` — main single-file app (HTML/CSS/JS).  
+- `quran.html` — main single-file app (HTML/CSS/JS).  
 - `assets/sample_dark.png` — theme sample image used in Settings.  
 - `assets/sample_sunset.png` — theme sample image used in Settings.  
 - `pages/` — folder containing page images named `1.png` .. `604.png` (or your page count).  
@@ -48,7 +48,7 @@
 
 ## How to change sample images
 - Replace `assets/sample_dark.png` and `assets/sample_sunset.png` with your own images keeping the same filenames to maintain Settings references.  
-- If you prefer different filenames, update the `<img src="...">` paths inside the Settings panel in `index.html` to match.
+- If you prefer different filenames, update the `<img src="...">` paths inside the Settings panel in `quran.html` to match.
 
 ## How to change Surah font
 - Put your custom font file at `fonts/sura_names.ttf` and register it via `@font-face` in the CSS, then apply it to the `.surah-num` class using `font-family: 'SuraNames', Inter, system-ui;`.
@@ -65,10 +65,10 @@
 
 ## GitHub Pages deployment (simple)
 - Push your repo to GitHub, go to the repository **Settings → Pages**, and choose the branch (usually `main`) and the root folder to serve the site.  
-- If the site is served from a subpath (like `username.github.io/repo`), set `<base href="/repo/">` in `index.html` or adjust relative paths accordingly.  
+- If the site is served from a subpath (like `username.github.io/repo`), set `<base href="/repo/">` in `quran.html` or adjust relative paths accordingly.  
 - Add a `CNAME` file to the repository root to enable a custom domain via GitHub Pages.
 
-## Example `index.html` adjustments for a repo subpath
+## Example `quran.html` adjustments for a repo subpath
 - Add `<base href="/your-repo-name/">` inside `<head>` if your Pages site is at `https://username.github.io/your-repo-name/`.  
 - Replace `pages/` and `assets/` references with absolute or correct relative paths if you change folder structure.
 
@@ -92,7 +92,7 @@
 ---
 
 ### Quick copy-paste checklist for repo
-- Ensure `index.html`, `assets/`, `pages/`, and `fonts/` are present and committed.  
+- Ensure `quran.html`, `assets/`, `pages/`, and `fonts/` are present and committed.  
 - Replace sample images in `assets/` and update `fonts/sura_names.ttf` if needed.  
 - Push the repository to GitHub and enable GitHub Pages from **Settings → Pages**.
 
