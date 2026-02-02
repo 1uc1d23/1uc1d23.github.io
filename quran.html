@@ -356,6 +356,9 @@
   const INITIAL_REPEAT_DELAY = 200; // ms before continuous repeat begins
   const REPEAT_INTERVAL_MS = 80;    // ms between pages while holding
 
+  // storage key for theme persistence
+  const THEME_KEY = 'alquran_theme';
+
   // ---------- Image loading helpers ----------
   function preload(page) {
     if (page < 1 || page > TOTAL_PAGES) return;
@@ -368,7 +371,7 @@
     im.onerror = () => { /* ignore */ };
   }
 
-  // default preload range now ±10 pages
+  // default preload range ±10 pages
   function preloadRange(center, before = 10, after = 10) {
     for (let i = center - before; i <= center + after; i++) preload(i);
   }
@@ -533,31 +536,49 @@
     else if (e.key === 'Escape') { e.preventDefault(); closeMenu(); }
   });
 
-  // ---------- Theme (settings) ----------
+  // ---------- Theme (settings) with persistence ----------
+  function saveThemeToStorage(theme){
+    try { localStorage.setItem(THEME_KEY, theme); } catch(e){ /* ignore storage errors */ }
+  }
+  function readThemeFromStorage(){
+    try { return localStorage.getItem(THEME_KEY); } catch(e){ return null; }
+  }
+
+  function setButtonStates(theme){
+    if(btnDark) {
+      btnDark.classList.toggle('active', theme === 'dark');
+      btnDark.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+    }
+    if(btnSunset) {
+      btnSunset.classList.toggle('active', theme === 'sunset');
+      btnSunset.setAttribute('aria-pressed', theme === 'sunset' ? 'true' : 'false');
+    }
+  }
+
   function applyTheme(theme) {
     const body = document.body;
     if (theme === 'sunset') {
       body.classList.add('theme-sunset');
       body.classList.remove('theme-dark');
-      btnSunset.classList.add('active');
-      btnSunset.setAttribute('aria-pressed', 'true');
-      btnDark.classList.remove('active');
-      btnDark.setAttribute('aria-pressed', 'false');
+      setButtonStates('sunset');
     } else {
       body.classList.remove('theme-sunset');
       body.classList.add('theme-dark');
-      btnDark.classList.add('active');
-      btnDark.setAttribute('aria-pressed', 'true');
-      btnSunset.classList.remove('active');
-      btnSunset.setAttribute('aria-pressed', 'false');
+      setButtonStates('dark');
     }
-    // when switching themes, ensure the page image swaps correctly according to CSS inversion
-    // (page image inversion is handled by CSS rules on body class)
+    saveThemeToStorage(theme);
+    // page image inversion handled by CSS rules that depend on body class
   }
 
   (function initTheme() {
-    if (document.body.classList.contains('theme-sunset')) applyTheme('sunset');
-    else applyTheme('dark');
+    const stored = readThemeFromStorage();
+    if (stored === 'sunset') applyTheme('sunset');
+    else if (stored === 'dark') applyTheme('dark');
+    else {
+      // fallback: preserve existing body class if already set, otherwise default to dark
+      if (document.body.classList.contains('theme-sunset')) applyTheme('sunset');
+      else applyTheme('dark');
+    }
   })();
 
   if (btnDark) btnDark.addEventListener('click', () => applyTheme('dark'));
@@ -651,5 +672,6 @@
 </body>
 
 </html>
+
 
 
