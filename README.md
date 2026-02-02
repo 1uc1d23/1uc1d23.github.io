@@ -1,7 +1,17 @@
 # Al-Qur'an — القرآن
 
-![Dark Theme](assets/sample_dark.png)  
-![Sunset Theme](assets/sample_sunset.png)
+<table>
+  <tr>
+    <td align="center">
+      <img src="assets/sample_dark.png" width="250px"><br>
+      **Dark Theme**
+    </td>
+    <td align="center">
+      <img src="assets/sample_sunset.png" width="250px"><br>
+      **Sunset Theme**
+    </td>
+  </tr>
+</table>
 
 ## Overview
 - A lightweight, keyboard-friendly Quran page viewer with fast preloading, page navigation.  
