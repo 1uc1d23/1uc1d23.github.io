@@ -1,291 +1,523 @@
 :root {
-      --bg: #000;
-      --panel: #0a0a0a;
-      --text: #eee;
-      --muted-text: #b3b3b3;
-      --muted-text-2: #686868;
-      --border: #333;
-      --color-transition: 260ms ease;
-      --max-img-height: 100vh;
-      --max-img-width: 100vw;
-    }
+    --bg: #000;
+    --panel: #0a0a0a;
+    --text: #eee;
+    --muted-text: #b3b3b3;
+    --muted-text-2: #686868;
+    --border: #333;
+    --color-transition: 260ms ease;
+    --max-img-height: 100vh;
+    --max-img-width: 100vw;
+}
 
-    .theme-sunset {
-      --bg: #fff7eb;
-      --panel: #fff5eb;
-      --text: #0a0a0a;
-      --muted-text: #333;
-      --muted-text-2: #a39789;
-      --border: #e6d5c0;
-    }
+.theme-sunset {
+    --bg: #fff7eb;
+    --panel: #fff5eb;
+    --text: #0a0a0a;
+    --muted-text: #333;
+    --muted-text-2: #a39789;
+    --border: #e6d5c0;
+}
 
-    :root::selection {
-      background: #2ca4ab;
-      color: #f9f9f9;
-    }
+:root::selection {
+    background: #2ca4ab;
+    color: #f9f9f9;
+}
 
-    .theme-sunset::selection {
-      background: #72603f;
-      color: #f9f9f9;
-    }
+.theme-sunset::selection {
+    background: #72603f;
+    color: #f9f9f9;
+}
 
-    html,
-    body {
-      height: 100%;
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      transition: background var(--color-transition), color var(--color-transition);
-    }
+html,
+body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background var(--color-transition), color var(--color-transition);
+}
 
-    * {
-      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    }
+* {
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
 
-    /* viewer area */
-    #viewer {
-      position: relative;
-      width: 100%;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      touch-action: pan-y;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
-    }
+/* viewer area */
+#viewer {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: pan-y;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
 
-    /* single page image (centered) - drop shadow removed */
-    #pageImg {
-      max-height: var(--max-img-height);
-      max-width: var(--max-img-width);
-      height: auto;
-      width: auto;
-      object-fit: contain;
-      user-select: none;
-      -webkit-user-drag: none;
-      image-rendering: auto;
-      -webkit-backface-visibility: hidden;
-      backface-visibility: hidden;
-      transform: translateZ(0);
-      pointer-events: none;
-      background: transparent;
-      display: block;
-      margin: auto;
-      box-shadow: none;
-      /* removed as requested */
-      transition: filter var(--color-transition);
-    }
+/* single page image (centered) - drop shadow removed */
+#pageImg {
+    max-height: var(--max-img-height);
+    max-width: var(--max-img-width);
+    height: auto;
+    width: auto;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+    image-rendering: auto;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    pointer-events: none;
+    background: transparent;
+    display: block;
+    margin: auto;
+    box-shadow: none;
+    /* removed as requested */
+    transition: filter var(--color-transition);
+}
 
-    /* invert main page images in dark mode, no inversion in sunset mode */
-    body:not(.theme-sunset) #pageImg {
-      filter: invert(1) saturate(0.95) contrast(1);
-    }
+/* invert main page images in dark mode, no inversion in sunset mode */
+body:not(.theme-sunset) #pageImg {
+    filter: invert(1) saturate(0.95) contrast(1);
+}
 
-    body.theme-sunset #pageImg {
-      filter: none;
-    }
+body.theme-sunset #pageImg {
+    filter: none;
+}
 
-    /* Page menu (bottom-right slide) */
-    #menuOverlay {
-      position: fixed;
-      inset: 0;
-      display: block;
-      z-index: 9999;
-      background: transparent;
-      -webkit-tap-highlight-color: transparent;
-      pointer-events: none;
-    }
+/* Page menu (bottom-right slide) */
+#menuOverlay {
+    position: fixed;
+    inset: 0;
+    display: block;
+    z-index: 9999;
+    background: transparent;
+    -webkit-tap-highlight-color: transparent;
+    pointer-events: none;
+}
 
-    #menu {
-      position: absolute;
-      right: 20px;
-      bottom: 20px;
-      background: var(--panel);
-      color: var(--text);
-      padding: 16px;
-      border-radius: 12px;
-      width: min(280px, 92%);
-      border: 1px solid var(--border);
-      box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
-      transform: translate(120%, 120%);
-      opacity: 0;
-      transition: transform 360ms cubic-bezier(.2, .9, .2, 1), opacity 260ms ease, background var(--color-transition), color var(--color-transition), border-color var(--color-transition);
-      will-change: transform, opacity;
-      pointer-events: auto;
-    }
+#menu {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    background: var(--panel);
+    color: var(--text);
+    padding: 16px;
+    border-radius: 12px;
+    width: min(280px, 92%);
+    border: 1px solid var(--border);
+    box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
+    transform: translate(120%, 120%);
+    opacity: 0;
+    transition: transform 360ms cubic-bezier(.2, .9, .2, 1), opacity 260ms ease, background var(--color-transition), color var(--color-transition), border-color var(--color-transition);
+    will-change: transform, opacity;
+    pointer-events: auto;
+}
 
-    #menuOverlay.open {
-      pointer-events: auto;
-    }
+#menuOverlay.open {
+    pointer-events: auto;
+}
 
-    #menuOverlay.open #menu {
-      transform: translate(0, 0);
-      opacity: 1;
-    }
+#menuOverlay.open #menu {
+    transform: translate(0, 0);
+    opacity: 1;
+}
 
-    #menu h2 {
-      margin: 0 0 8px 0;
-      font-weight: 600;
-      font-size: 18px;
-      text-align: center;
-      color: var(--text);
-    }
+#menu h2 {
+    margin: 0 0 8px 0;
+    font-weight: 600;
+    font-size: 18px;
+    text-align: center;
+    color: var(--text);
+}
 
-    #menu p {
-      margin: 0 0 12px 0;
-      font-size: 13px;
-      color: var(--muted-text);
-      text-align: center;
-    }
+#menu p {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    color: var(--muted-text);
+    text-align: center;
+}
 
-    #pageInput {
-      width: 100%;
-      padding: 10px 12px;
-      margin-bottom: 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--text);
-      font-size: 16px;
-      text-align: center;
-      outline: none;
-      box-sizing: border-box;
-    }
+#pageInput {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: 16px;
+    text-align: center;
+    outline: none;
+    box-sizing: border-box;
+}
 
-    #goBtn {
-      box-sizing: border-box;
-      border: 0;
-      border-radius: 999px;
-      color: var(--text);
-      cursor: pointer;
-      padding: 10px 12px;
-      background: transparent;
-      border: 1px solid var(--border);
-      display: flex;
-      transition: 0.2s background;
-      align-items: center;
-      gap: 0.6em;
-      font-weight: bold;
-      margin: auto;
-    }
+#goBtn {
+    box-sizing: border-box;
+    border: 0;
+    border-radius: 999px;
+    color: var(--text);
+    cursor: pointer;
+    padding: 10px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    display: flex;
+    transition: 0.2s background;
+    align-items: center;
+    gap: 0.6em;
+    font-weight: bold;
+    margin: auto;
+}
 
-    #menuSmallNote {
-      margin-top: 8px;
-      font-size: 10px;
-      text-align: center;
-      color: var(--muted-text-2);
-    }
+#menuSmallNote {
+    margin-top: 8px;
+    font-size: 10px;
+    text-align: center;
+    color: var(--muted-text-2);
+}
 
-    /* Settings panel (top-right slide) */
-    #settingsOverlay {
-      position: fixed;
-      inset: 0;
-      display: block;
-      z-index: 9998;
-      background: transparent;
-      pointer-events: none;
-    }
+/* Settings panel (top-right slide) */
+#settingsOverlay {
+    position: fixed;
+    inset: 0;
+    display: block;
+    z-index: 9998;
+    background: transparent;
+    pointer-events: none;
+}
 
-    #settingsPanel {
-      position: absolute;
-      right: 20px;
-      top: 20px;
-      background: var(--panel);
-      color: var(--text);
-      padding: 16px;
-      border-radius: 12px;
-      width: min(300px, 92%);
-      border: 1px solid var(--border);
-      box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
-      transform: translate(120%, -120%);
-      opacity: 0;
-      transition: transform 360ms cubic-bezier(.2, .9, .2, 1), opacity 260ms ease, background var(--color-transition), color var(--color-transition), border-color var(--color-transition);
-      will-change: transform, opacity;
-      pointer-events: auto;
-    }
+#settingsPanel {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    background: var(--panel);
+    color: var(--text);
+    padding: 16px;
+    border-radius: 12px;
+    width: min(300px, 92%);
+    border: 1px solid var(--border);
+    box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
+    transform: translate(120%, -120%);
+    opacity: 0;
+    transition: transform 360ms cubic-bezier(.2, .9, .2, 1), opacity 260ms ease, background var(--color-transition), color var(--color-transition), border-color var(--color-transition);
+    will-change: transform, opacity;
+    pointer-events: auto;
+}
 
-    #settingsOverlay.open {
-      pointer-events: auto;
-    }
+#settingsOverlay.open {
+    pointer-events: auto;
+}
 
-    #settingsOverlay.open #settingsPanel {
-      transform: translate(0, 0);
-      opacity: 1;
-    }
+#settingsOverlay.open #settingsPanel {
+    transform: translate(0, 0);
+    opacity: 1;
+}
 
-    #settingsPanel h3 {
-      margin: 0 0 12px 0;
-      font-weight: 600;
-      font-size: 16px;
-      color: var(--text);
-    }
+#settingsPanel h3 {
+    margin: 0 0 12px 0;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text);
+}
 
-    .theme-section {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      justify-content: center;
-    }
+.theme-section {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+}
 
-    /* square sample buttons */
-    .theme-sample {
-      width: 96px;
-      height: 96px;
-      border-radius: 8px;
-      padding: 5px;
-      border: none;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      background: transparent;
-    }
+/* square sample buttons */
+.theme-sample {
+    width: 96px;
+    height: 96px;
+    border-radius: 8px;
+    padding: 5px;
+    border: none;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: transparent;
+}
 
-    .theme-sample img {
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
+.theme-sample img {
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
 
-    .theme-sample.active {
-      border: 1px solid var(--border);
-    }
+.theme-sample.active {
+    border: 1px solid var(--border);
+}
 
-    /* labels under samples */
-    .theme-labels {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      margin-top: 8px;
-      color: var(--muted-text-2);
-      font-size: 10px;
-    }
+/* labels under samples */
+.theme-labels {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 8px;
+    color: var(--muted-text-2);
+    font-size: 10px;
+}
 
-    .theme-labels div {
-      width: 96px;
-      text-align: center;
-    }
+.theme-labels div {
+    width: 96px;
+    text-align: center;
+}
 
-    @media (max-width:420px) {
-      .label {
+@media (max-width:420px) {
+    .label {
         font-size: 13px;
         padding: 6px 8px;
-      }
+    }
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    color-scheme: dark;
+}
+
+@font-face {
+    font-family: 'SuraNames';
+    src: url('../fonts/sura_names.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+#navOverlay {
+    position: fixed;
+    inset: 0;
+    display: block;
+    z-index: 10000;
+    background: transparent;
+    pointer-events: none;
+}
+
+#navPanel {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    background: var(--panel);
+    color: var(--text);
+    padding: 14px;
+    border-radius: 12px;
+    width: min(320px, 92%);
+    height: 89%;
+    border: 1px solid var(--border);
+    box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
+    transform: translate(120%, -120%);
+    opacity: 0;
+    transition: transform 320ms cubic-bezier(.2, .9, .2, 1), opacity 220ms ease, background var(--color-transition);
+    will-change: transform, opacity;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#navPanel h3 {
+    margin: 0px 2px 0px 0px;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text);
+}
+
+#navPanel p {
+    margin-top: -5px;
+    margin-bottom: 0;
+    font-size: 13px;
+    color: var(--muted-text-2);
+}
+
+#navOverlay.open {
+    pointer-events: auto;
+}
+
+#navOverlay.open #navPanel {
+    transform: translate(0, 0);
+    opacity: 1;
+}
+
+/* search input */
+#navSearch {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    outline: none;
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+#navSearch::placeholder {
+    color: var(--muted-text-2);
+}
+
+/* remove browser-specific "clear" / "x" on search inputs */
+#navSearch::-webkit-search-decoration,
+#navSearch::-webkit-search-cancel-button,
+#navSearch::-webkit-search-results-button,
+#navSearch::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}
+#navSearch::-ms-clear,
+#navSearch::-ms-reveal {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+/* list container with fixed height and scroll */
+.nav-list {
+    overflow: auto;
+    padding: 6px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    box-sizing: border-box;
+    height: 85vh;      /* fixed height as requested */
+    width: 100%;        /* responsive width but fixed height */
+}
+
+/* scrollbar theming */
+.nav-list::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.nav-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+body.theme-sunset .nav-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.nav-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* surah item layout - uniform sizes and consistent alignment */
+.surah-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 10px;
+    padding: 0;                 /* reset padding so children control spacing uniformly */
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 160ms ease;
+    height: 64px;
+    box-sizing: border-box;
+    padding-left: 10px;
+    padding-right: 10px;
+    overflow: hidden;
+}
+
+/* left section: name + verses - aligned to left and takes remaining space */
+.surah-left {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;    /* vertically center content within the fixed item height */
+    align-items: flex-start;    /* ensure left alignment */
+    gap: 2px;
+    padding-left: 5px;
+}
+
+/* surah name + number row: keep close together */
+.surah-title-row {
+    display: flex;
+    align-items: center;
+    gap: 3px; 
+    width: 100%;
+}
+
+/* surah name */
+.surah-name {
+    font-size: 14px;
+    color: var(--text);
+}
+
+/* surah number rendered with SuraNames font (3-digit) - kept close to name */
+.surah-num {
+    font-family: 'SuraNames', Inter, system-ui;
+    font-size: 16px;            /* slightly reduced so it doesn't dominate */
+    line-height: 1;
+    color: var(--text);
+    width: 40px;                /* fixed width for consistent spacing */
+    text-align: left;
+    flex: 0 0 40px;
+    margin-left: 0;             /* no extra space */
+}
+
+/* verses count muted */
+.surah-verses {
+    font-size: 12px;
+    color: var(--muted-text-2);
+    line-height: 1;
+}
+
+/* right section: start page - fixed width and vertically centered */
+.surah-page {
+    width: 30px;
+    text-align: center;
+    color: var(--muted-text-2);
+    font-weight: 300;
+    font-size: 14px;
+}
+
+/* hover / focus */
+.surah-item:hover,
+.surah-item:focus {
+    border-color: var(--border);
+    outline: none;
+}
+
+/* ensure small screens are okay */
+@media (max-width:420px) {
+    #navPanel {
+        width: calc(100% - 28px);
+        left: 14px;
+        right: 14px;
+        top: 12px;
     }
 
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
+    .surah-num {
+        font-size: 16px;
+        width: 36px;
+        flex: 0 0 36px;
     }
 
-    input[type=number] {
-      color-scheme: dark;
+    .surah-page {
+        width: 44px;
+        flex: 0 0 44px;
+        font-size: 13px;
     }
+
+    .nav-list { height: 320px; }
+}
