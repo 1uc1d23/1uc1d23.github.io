@@ -1,14 +1,14 @@
 # Al-Qur'an — القرآن
 
-<table>
+<table align="center">
   <tr>
-    <td align="center">
-      <img src="assets/sample_dark.png" width="250px"><br>
-      **Dark Theme**
+    <td align="center" style="padding-right: 20px;">
+      <img src="assets/sample_dark.png" width="180px"><br>
+      ###### Dark Theme
     </td>
-    <td align="center">
-      <img src="assets/sample_sunset.png" width="250px"><br>
-      **Sunset Theme**
+    <td align="center" style="padding-left: 20px;">
+      <img src="assets/sample_sunset.png" width="180px"><br>
+      ###### Sunset Theme
     </td>
   </tr>
 </table>
