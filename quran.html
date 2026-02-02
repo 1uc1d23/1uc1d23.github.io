@@ -341,12 +341,14 @@
   </div>
 
   <script>
-    (() => {
+(() => {
   const TOTAL_PAGES = 604;
   const pageImg = document.getElementById('pageImg');
   let current = 1;
   const imageCache = new Map(); // page -> Image
-  const CACHE_LIMIT = 60;
+
+  // set cache limit to hold all pages when preloading all
+  const CACHE_LIMIT = TOTAL_PAGES;
 
   // controlled repeat state
   let repeating = false;
@@ -357,12 +359,12 @@
   const REPEAT_INTERVAL_MS = 80;    // ms between pages while holding
 
   // ---------- Image loading helpers ----------
-  function preload(page) {
+  function preload(page, eager = false) {
     if (page < 1 || page > TOTAL_PAGES) return;
     if (imageCache.has(page)) return;
     const im = new Image();
     im.decoding = 'async';
-    im.loading = 'lazy';
+    im.loading = eager ? 'eager' : 'lazy';
     im.src = `pages/${page}.png`;
     im.onload = () => imageCache.set(page, im);
     im.onerror = () => { /* ignore */ };
@@ -405,23 +407,23 @@
       cb(new Error('failed to load'));
     };
 
-    // try to decode early where supported (non-blocking)
     if (typeof im.decode === 'function') {
       im.decode().catch(() => { /* ignore decode failures; onload will handle it */ });
     }
   }
 
   function setPageImg(page){
-        if(page < 1 || page > TOTAL_PAGES) return;
-        const cached = imageCache.get(page);
-        if(cached && cached.src){
-          pageImg.src = cached.src;
-        } else {
-          pageImg.loading = 'eager';
-          pageImg.decoding = 'async';
-          pageImg.src = `pages/${page}.png`;
-        }
-      }
+    if(page < 1 || page > TOTAL_PAGES) return;
+    const cached = imageCache.get(page);
+    if(cached && cached.src){
+      pageImg.src = cached.src;
+    } else {
+      // fallback immediate load (will swap when browser loads)
+      pageImg.loading = 'eager';
+      pageImg.decoding = 'async';
+      pageImg.src = `pages/${page}.png`;
+    }
+  }
 
   // ---------- Page navigation ----------
   function showPage(target, direction = 0) {
@@ -469,7 +471,7 @@
     if (repeatInterval) { clearInterval(repeatInterval); repeatInterval = null; }
   }
 
-  // ---------- UI: menu & settings wiring ----------
+  // ---------- UI: menu & settings wiring (unchanged) ----------
   const menuOverlay = document.getElementById('menuOverlay');
   const pageInput = document.getElementById('pageInput');
   const goBtn = document.getElementById('goBtn');
@@ -539,20 +541,14 @@
     if (theme === 'sunset') {
       body.classList.add('theme-sunset');
       body.classList.remove('theme-dark');
-      btnSunset.classList.add('active');
-      btnSunset.setAttribute('aria-pressed', 'true');
-      btnDark.classList.remove('active');
-      btnDark.setAttribute('aria-pressed', 'false');
+      if (btnSunset) { btnSunset.classList.add('active'); btnSunset.setAttribute('aria-pressed', 'true'); }
+      if (btnDark) { btnDark.classList.remove('active'); btnDark.setAttribute('aria-pressed', 'false'); }
     } else {
       body.classList.remove('theme-sunset');
       body.classList.add('theme-dark');
-      btnDark.classList.add('active');
-      btnDark.setAttribute('aria-pressed', 'true');
-      btnSunset.classList.remove('active');
-      btnSunset.setAttribute('aria-pressed', 'false');
+      if (btnDark) { btnDark.classList.add('active'); btnDark.setAttribute('aria-pressed', 'true'); }
+      if (btnSunset) { btnSunset.classList.remove('active'); btnSunset.setAttribute('aria-pressed', 'false'); }
     }
-    // when switching themes, ensure the page image swaps correctly according to CSS inversion
-    // (page image inversion is handled by CSS rules on body class)
   }
 
   (function initTheme() {
@@ -629,13 +625,41 @@
     }, { passive: true });
   }
 
+  // ---------- Preload ALL pages in gentle background batches ----------
+  function preloadAll(batchSize = 20, delay = 50) {
+    let i = 1;
+    function loadBatch() {
+      const end = Math.min(TOTAL_PAGES, i + batchSize - 1);
+      for (let p = i; p <= end; p++) {
+        if (!imageCache.has(p)) {
+          const im = new Image();
+          im.decoding = 'async';
+          im.loading = 'eager';
+          im.src = `pages/${p}.png`;
+          im.onload = () => imageCache.set(p, im);
+          im.onerror = () => {};
+        }
+      }
+      i = end + 1;
+      if (i <= TOTAL_PAGES) {
+        if (window.requestIdleCallback) requestIdleCallback(loadBatch, { timeout: 200 });
+        else setTimeout(loadBatch, delay);
+      }
+    }
+    // start background batches without blocking the UI
+    loadBatch();
+  }
+
   // ---------- Init / deep-link ----------
   (function init() {
     current = 1;
-    preload(current);
+    // render first page quickly
+    preload(current, true);
     preload(current + 1);
     preload(current - 1);
     setPageImg(current);
+    // start background preloading of all pages (non-blocking)
+    preloadAll(20, 60);
   })();
 
   (function handleDeepLink() {
@@ -647,8 +671,8 @@
   })();
 
 })();
+</script>
 
-  </script>
 </body>
 
 </html>
