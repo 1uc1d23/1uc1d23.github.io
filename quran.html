@@ -48,13 +48,24 @@
     </div>
   </div>
 
+    <!-- Navigation Panel toggled by pressing 'N' -->
+  <div id="navOverlay" aria-hidden="true">
+    <div id="navPanel" role="dialog" aria-modal="true">
+      <h3 id="navHeading">Navigation</h3>
+      <p>Go to surah.</p>
+
+      <div style="margin-top:8px;">
+        <input id="navSearch" type="search" placeholder="Try typing Ya-Sin or 36 ..." />
+      </div>
+
+      <div id="navList" class="nav-list" role="region" aria-live="polite" tabindex="0">
+        <!-- Surah buttons are rendered here by script.js -->
+      </div>
+    </div>
+  </div>
+
   <script src="source/script.js"></script>
 
 </body>
 
 </html>
-
-
-
-
-
