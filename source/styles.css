@@ -1,0 +1,291 @@
+:root {
+      --bg: #000;
+      --panel: #0a0a0a;
+      --text: #eee;
+      --muted-text: #b3b3b3;
+      --muted-text-2: #686868;
+      --border: #333;
+      --color-transition: 260ms ease;
+      --max-img-height: 100vh;
+      --max-img-width: 100vw;
+    }
+
+    .theme-sunset {
+      --bg: #fff7eb;
+      --panel: #fff5eb;
+      --text: #0a0a0a;
+      --muted-text: #333;
+      --muted-text-2: #a39789;
+      --border: #e6d5c0;
+    }
+
+    :root::selection {
+      background: #2ca4ab;
+      color: #f9f9f9;
+    }
+
+    .theme-sunset::selection {
+      background: #72603f;
+      color: #f9f9f9;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      transition: background var(--color-transition), color var(--color-transition);
+    }
+
+    * {
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    /* viewer area */
+    #viewer {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: pan-y;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* single page image (centered) - drop shadow removed */
+    #pageImg {
+      max-height: var(--max-img-height);
+      max-width: var(--max-img-width);
+      height: auto;
+      width: auto;
+      object-fit: contain;
+      user-select: none;
+      -webkit-user-drag: none;
+      image-rendering: auto;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      transform: translateZ(0);
+      pointer-events: none;
+      background: transparent;
+      display: block;
+      margin: auto;
+      box-shadow: none;
+      /* removed as requested */
+      transition: filter var(--color-transition);
+    }
+
+    /* invert main page images in dark mode, no inversion in sunset mode */
+    body:not(.theme-sunset) #pageImg {
+      filter: invert(1) saturate(0.95) contrast(1);
+    }
+
+    body.theme-sunset #pageImg {
+      filter: none;
+    }
+
+    /* Page menu (bottom-right slide) */
+    #menuOverlay {
+      position: fixed;
+      inset: 0;
+      display: block;
+      z-index: 9999;
+      background: transparent;
+      -webkit-tap-highlight-color: transparent;
+      pointer-events: none;
+    }
+
+    #menu {
+      position: absolute;
+      right: 20px;
+      bottom: 20px;
+      background: var(--panel);
+      color: var(--text);
+      padding: 16px;
+      border-radius: 12px;
+      width: min(280px, 92%);
+      border: 1px solid var(--border);
+      box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
+      transform: translate(120%, 120%);
+      opacity: 0;
+      transition: transform 360ms cubic-bezier(.2, .9, .2, 1), opacity 260ms ease, background var(--color-transition), color var(--color-transition), border-color var(--color-transition);
+      will-change: transform, opacity;
+      pointer-events: auto;
+    }
+
+    #menuOverlay.open {
+      pointer-events: auto;
+    }
+
+    #menuOverlay.open #menu {
+      transform: translate(0, 0);
+      opacity: 1;
+    }
+
+    #menu h2 {
+      margin: 0 0 8px 0;
+      font-weight: 600;
+      font-size: 18px;
+      text-align: center;
+      color: var(--text);
+    }
+
+    #menu p {
+      margin: 0 0 12px 0;
+      font-size: 13px;
+      color: var(--muted-text);
+      text-align: center;
+    }
+
+    #pageInput {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      font-size: 16px;
+      text-align: center;
+      outline: none;
+      box-sizing: border-box;
+    }
+
+    #goBtn {
+      box-sizing: border-box;
+      border: 0;
+      border-radius: 999px;
+      color: var(--text);
+      cursor: pointer;
+      padding: 10px 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      display: flex;
+      transition: 0.2s background;
+      align-items: center;
+      gap: 0.6em;
+      font-weight: bold;
+      margin: auto;
+    }
+
+    #menuSmallNote {
+      margin-top: 8px;
+      font-size: 10px;
+      text-align: center;
+      color: var(--muted-text-2);
+    }
+
+    /* Settings panel (top-right slide) */
+    #settingsOverlay {
+      position: fixed;
+      inset: 0;
+      display: block;
+      z-index: 9998;
+      background: transparent;
+      pointer-events: none;
+    }
+
+    #settingsPanel {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      background: var(--panel);
+      color: var(--text);
+      padding: 16px;
+      border-radius: 12px;
+      width: min(300px, 92%);
+      border: 1px solid var(--border);
+      box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
+      transform: translate(120%, -120%);
+      opacity: 0;
+      transition: transform 360ms cubic-bezier(.2, .9, .2, 1), opacity 260ms ease, background var(--color-transition), color var(--color-transition), border-color var(--color-transition);
+      will-change: transform, opacity;
+      pointer-events: auto;
+    }
+
+    #settingsOverlay.open {
+      pointer-events: auto;
+    }
+
+    #settingsOverlay.open #settingsPanel {
+      transform: translate(0, 0);
+      opacity: 1;
+    }
+
+    #settingsPanel h3 {
+      margin: 0 0 12px 0;
+      font-weight: 600;
+      font-size: 16px;
+      color: var(--text);
+    }
+
+    .theme-section {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* square sample buttons */
+    .theme-sample {
+      width: 96px;
+      height: 96px;
+      border-radius: 8px;
+      padding: 5px;
+      border: none;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    .theme-sample img {
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .theme-sample.active {
+      border: 1px solid var(--border);
+    }
+
+    /* labels under samples */
+    .theme-labels {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 8px;
+      color: var(--muted-text-2);
+      font-size: 10px;
+    }
+
+    .theme-labels div {
+      width: 96px;
+      text-align: center;
+    }
+
+    @media (max-width:420px) {
+      .label {
+        font-size: 13px;
+        padding: 6px 8px;
+      }
+    }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    input[type=number] {
+      color-scheme: dark;
+    }
