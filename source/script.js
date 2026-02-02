@@ -22,6 +22,33 @@
   // storage key for theme persistence
   const THEME_KEY = 'alquran_theme';
 
+  // ---------------- persist last-read page ----------------
+const PAGE_KEY = 'alquran_last_page';
+
+function savePageToStorage() {
+  try {
+    // store the current page (ensure it's a valid integer)
+    if (typeof current === 'number' && current >= 1 && current <= TOTAL_PAGES) {
+      localStorage.setItem(PAGE_KEY, String(current));
+    }
+  } catch (e) { /* ignore storage errors */ }
+}
+
+function readPageFromStorage() {
+  try {
+    const v = parseInt(localStorage.getItem(PAGE_KEY), 10);
+    if (!isNaN(v) && v >= 1 && v <= TOTAL_PAGES) return v;
+  } catch (e) {}
+  return null;
+}
+
+window.addEventListener('beforeunload', savePageToStorage, { passive: true });
+window.addEventListener('pagehide', savePageToStorage, { passive: true });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') savePageToStorage();
+}, { passive: true });
+
+
   // tune behavior by network quality (if available)
   const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
   const effectiveType = conn && conn.effectiveType ? conn.effectiveType : '4g';
@@ -174,16 +201,18 @@
     });
   }
 
-  // show page and trigger preloads and trimming
   function showPage(target, direction = 0) {
-    if (target < 1 || target > TOTAL_PAGES) return;
-    setPageImg(target);
-    current = target;
-    if (direction > 0) preloadRange(target, PRELOAD_BEFORE, PRELOAD_AFTER);
-    else if (direction < 0) preloadRange(target, PRELOAD_BEFORE, PRELOAD_AFTER);
-    else preloadRange(target, PRELOAD_BEFORE, PRELOAD_AFTER);
-    trimCache(current);
-  }
+  if (target < 1 || target > TOTAL_PAGES) return;
+  setPageImg(target);
+  current = target;
+  // save current page immediately so we always have up-to-date value
+  savePageToStorage();
+
+  if (direction > 0) preloadRange(target, PRELOAD_BEFORE, PRELOAD_AFTER);
+  else if (direction < 0) preloadRange(target, PRELOAD_BEFORE, PRELOAD_AFTER);
+  else preloadRange(target, PRELOAD_BEFORE, PRELOAD_AFTER);
+  trimCache(current);
+}
   window.showPage = showPage;
 
   function nextPage(){ const targ = current >= TOTAL_PAGES ? 1 : current + 1; showPage(targ, +1); }
@@ -293,11 +322,10 @@
     }, { passive: true });
   }
 
-  // init / deep-link
   (function init() {
-    current = 1;
+    const stored = readPageFromStorage();
+    current = stored || 1;
     preloadRange(current, PRELOAD_BEFORE, PRELOAD_AFTER);
-    // warm neighbors by hint
     warmNeighbors(current);
     setPageImg(current);
   })();
@@ -605,7 +633,5 @@ window.addEventListener('keydown', ev => {
 
 /* ---------- initial ---------- */
 requestAnimationFrame(() => renderList(surahs));
-
-
 
 })();
