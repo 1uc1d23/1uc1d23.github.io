@@ -48,7 +48,7 @@
     </div>
   </div>
 
-    <!-- Navigation Panel toggled by pressing 'N' -->
+  <!-- Navigation Panel toggled by pressing 'N' -->
   <div id="navOverlay" aria-hidden="true">
     <div id="navPanel" role="dialog" aria-modal="true">
       <h3 id="navHeading">Navigation</h3>
@@ -59,7 +59,51 @@
       </div>
 
       <div id="navList" class="nav-list" role="region" aria-live="polite" tabindex="0">
-        <!-- Surah buttons are rendered here by script.js -->
+        <!-- Surah buttons rendered by script.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Bookmarks Panel toggled by pressing 'B' -->
+  <div id="bmOverlay" aria-hidden="true">
+    <div id="bmPanel" role="dialog" aria-modal="true" aria-labelledby="bmHeading">
+      <div class="bm-header">
+        <div>
+          <h3 id="bmHeading">Bookmarks</h3>
+          <p class="bm-sub">Saved pages & quick-jump</p>
+        </div>
+        <div class="bm-actions">
+          <!-- Add bookmark button -->
+          <button id="bmAddBtn" class="icon-btn" title="Add bookmark" aria-label="Add bookmark">
+            <!-- bookmark icon (fill will use --accent via CSS) -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="bi bi-bookmark-fill">
+              <path d="M2 2v13.5a.5.5 0 0 0 .74.439L8 13.069l5.26 2.87A.5.5 0 0 0 14 15.5V2a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2"/>
+            </svg>
+          </button>
+
+          <!-- Trash / Toggle to checkmark -->
+          <button id="bmTrashBtn" class="icon-btn" title="Delete bookmarks" aria-label="Delete bookmarks">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="bi bi-trash3-fill">
+              <path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5M4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06m6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528M8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="bmList" class="bm-list" role="region" aria-live="polite" tabindex="0">
+        <!-- Bookmark items rendered by script.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Bookmark naming prompt overlay (blur background) -->
+  <div id="bmPromptOverlay" aria-hidden="true">
+    <div id="bmPrompt">
+      <h4>Save a bookmark</h4>
+      <input id="bmNameInput" type="text" placeholder="e.g. Currently learning" maxlength="80" />
+      <div class="bmPromptActions">
+        <button id="bmPromptCancel">Cancel</button>
+        <button id="bmPromptSave">Save</button>
       </div>
     </div>
   </div>
