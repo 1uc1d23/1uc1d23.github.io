@@ -1,342 +1,59 @@
-
 (() => {
+  // ---------- Config ----------
   const TOTAL_PAGES = 604;
-  const pageImg = document.getElementById('pageImg');
-  let current = 1;
-
-  // cache: page -> { blobUrl: string, size: number }
-  const imageCache = new Map();
-  const CACHE_LIMIT = 80;           // entries to keep in memory + CacheStorage
+  const CACHE_LIMIT = 80;
   const MAX_CONCURRENT_PREFETCH = 4;
-  const inFlight = new Set();       // pages currently being fetched
-  const listeners = new Map();      // page -> [cb, cb...]
-
-  // controlled repeat state
-  let repeating = false;
-  let repeatDir = 0;
-  let repeatTimeout = null;
-  let repeatInterval = null;
   const DEFAULT_INITIAL_REPEAT_DELAY = 200;
   const DEFAULT_REPEAT_INTERVAL_MS = 80;
-
-  // storage key for theme persistence
   const THEME_KEY = 'alquran_theme';
+  const PAGE_KEY = 'alquran_last_page';
+  const BOOKMARKS_KEY = 'alquran_bookmarks';
+  const PAGES_JSON_URL = 'https://raw.githubusercontent.com/rn0x/Quran-Data/refs/heads/version-2.0/data/pagesQuran.json';
 
-  // ---------------- persist last-read page ----------------
-const PAGE_KEY = 'alquran_last_page';
+  // ---------- DOM refs ----------
+  const pageImg = document.getElementById('pageImg');
+  const viewer = document.getElementById('viewer');
 
-function savePageToStorage() {
-  try {
-    // store the current page (ensure it's a valid integer)
-    if (typeof current === 'number' && current >= 1 && current <= TOTAL_PAGES) {
-      localStorage.setItem(PAGE_KEY, String(current));
-    }
-  } catch (e) { /* ignore storage errors */ }
-}
-
-function readPageFromStorage() {
-  try {
-    const v = parseInt(localStorage.getItem(PAGE_KEY), 10);
-    if (!isNaN(v) && v >= 1 && v <= TOTAL_PAGES) return v;
-  } catch (e) {}
-  return null;
-}
-
-window.addEventListener('beforeunload', savePageToStorage, { passive: true });
-window.addEventListener('pagehide', savePageToStorage, { passive: true });
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') savePageToStorage();
-}, { passive: true });
-
-
-  // tune behavior by network quality (if available)
-  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-  const effectiveType = conn && conn.effectiveType ? conn.effectiveType : '4g';
-  // degrade aggressiveness on slower networks
-  let PRELOAD_BEFORE = 10;
-  let PRELOAD_AFTER = 10;
-  let REPEAT_INTERVAL_MS = DEFAULT_REPEAT_INTERVAL_MS;
-  if (effectiveType.includes('2g') || effectiveType.includes('slow-2g')) {
-    PRELOAD_BEFORE = PRELOAD_AFTER = 2;
-    REPEAT_INTERVAL_MS = 200;
-  } else if (effectiveType.includes('3g')) {
-    PRELOAD_BEFORE = PRELOAD_AFTER = 4;
-    REPEAT_INTERVAL_MS = 140;
-  }
-
-  // util: create preload hint link for browser (helps HTTP/2 servers)
-  function hintPreload(url) {
-    try {
-      const l = document.createElement('link');
-      l.rel = 'preload';
-      l.as = 'image';
-      l.href = url;
-      document.head.appendChild(l);
-      // remove after a while to avoid accumulating tags
-      setTimeout(()=> l.remove(), 10_000);
-    } catch(e){}
-  }
-
-  // trim memory cache and revoke blob URLs when removing
-  function trimCache(center) {
-    if (imageCache.size <= CACHE_LIMIT) return;
-    const pages = Array.from(imageCache.keys()).sort((a,b)=> Math.abs(a-center) - Math.abs(b-center));
-    while (imageCache.size > CACHE_LIMIT) {
-      const toRemove = pages.pop();
-      const entry = imageCache.get(toRemove);
-      if (entry && entry.blobUrl) {
-        try { URL.revokeObjectURL(entry.blobUrl); } catch(e){}
-      }
-      imageCache.delete(toRemove);
-    }
-  }
-
-  // safe blob URL creation from Response
-  async function responseToBlobUrl(resp) {
-    const blob = await resp.blob();
-    return URL.createObjectURL(blob);
-  }
-
-  // main loader: uses Cache Storage when possible, falls back to network, stores blobUrls in memory
-  function loadImage(page, cb) {
-    if (page < 1 || page > TOTAL_PAGES) return cb(new Error('out-of-range'));
-    const url = `pages/${page}.png`;
-
-    // already cached in memory
-    const mem = imageCache.get(page);
-    if (mem && mem.blobUrl) return cb(null, mem.blobUrl);
-
-    // attach listener list
-    if (!listeners.has(page)) listeners.set(page, []);
-    listeners.get(page).push(cb);
-
-    if (inFlight.has(page)) return; // fetch already started
-
-    inFlight.add(page);
-
-    (async () => {
-      try {
-        // try CacheStorage first
-        let resp = null;
-        if ('caches' in window) {
-          try {
-            const c = await caches.open('alq-pages-v1');
-            const match = await c.match(url);
-            if (match) resp = match;
-          } catch(e){}
-        }
-
-        // if not in caches, fetch and store in CacheStorage
-        if (!resp) {
-          // hint browser to prioritize
-          hintPreload(url);
-
-          const fetched = await fetch(url, { credentials: 'same-origin' });
-          if (!fetched.ok) throw new Error('fetch-failed');
-          // clone for cache
-          const clone = fetched.clone();
-          if ('caches' in window) {
-            try {
-              const c = await caches.open('alq-pages-v1');
-              c.put(url, clone).catch(()=>{/* ignore cache put errors */});
-            } catch(e){ /* ignore */ }
-          }
-          resp = fetched;
-        }
-
-        const blobUrl = await responseToBlobUrl(resp);
-        // store in memory cache
-        imageCache.set(page, { blobUrl, ts: Date.now() });
-
-        // notify listeners
-        const list = listeners.get(page) || [];
-        for (const fn of list) {
-          try { fn(null, blobUrl); } catch(e){}
-        }
-        listeners.delete(page);
-      } catch (err) {
-        const list = listeners.get(page) || [];
-        for (const fn of list) {
-          try { fn(err); } catch(e){}
-        }
-        listeners.delete(page);
-      } finally {
-        inFlight.delete(page);
-      }
-    })();
-  }
-
-  // prefetch with concurrency limit for a range
-  function preloadRange(center, before = PRELOAD_BEFORE, after = PRELOAD_AFTER) {
-    const toFetch = [];
-    for (let i = center - before; i <= center + after; i++) {
-      if (i < 1 || i > TOTAL_PAGES) continue;
-      if (imageCache.has(i) || inFlight.has(i)) continue;
-      toFetch.push(i);
-    }
-    let idx = 0;
-    const concurrency = Math.max(1, Math.min(MAX_CONCURRENT_PREFETCH, Math.ceil(navigator.hardwareConcurrency ? navigator.hardwareConcurrency/2 : 2)));
-    function nextSlot() {
-      if (idx >= toFetch.length) return;
-      const page = toFetch[idx++];
-      loadImage(page, ()=>{}); // no-op cb; result stored in imageCache
-      // schedule next after tiny delay to avoid bursts
-      setTimeout(nextSlot, 50);
-    }
-    for (let k=0;k<concurrency;k++) nextSlot();
-  }
-
-  // set visible page using blob URL if available, else fall back to safe load
-  function setPageImg(page) {
-    if (page < 1 || page > TOTAL_PAGES) return;
-    const entry = imageCache.get(page);
-    if (entry && entry.blobUrl) {
-      pageImg.src = entry.blobUrl;
-      return;
-    }
-    // otherwise load then swap
-    loadImage(page, (err, src) => {
-      if (!err && src) pageImg.src = src;
-      // if error, do nothing (keep current)
-    });
-  }
-
-  function showPage(target, direction = 0) {
-  if (target < 1 || target > TOTAL_PAGES) return;
-  setPageImg(target);
-  current = target;
-  // save current page immediately so we always have up-to-date value
-  savePageToStorage();
-
-  if (direction > 0) preloadRange(target, PRELOAD_BEFORE, PRELOAD_AFTER);
-  else if (direction < 0) preloadRange(target, PRELOAD_BEFORE, PRELOAD_AFTER);
-  else preloadRange(target, PRELOAD_BEFORE, PRELOAD_AFTER);
-  trimCache(current);
-}
-  window.showPage = showPage;
-
-  function nextPage(){ const targ = current >= TOTAL_PAGES ? 1 : current + 1; showPage(targ, +1); }
-  function prevPage(){ const targ = current <= 1 ? TOTAL_PAGES : current - 1; showPage(targ, -1); }
-  function step(dir) { if (dir === +1) nextPage(); else if (dir === -1) prevPage(); }
-
-  // controlled repeat (uses network-aware REPEAT_INTERVAL_MS)
-  function startRepeat(dir) {
-    if (repeating) return;
-    repeating = true; repeatDir = dir;
-    step(dir);
-    repeatTimeout = setTimeout(() => {
-      repeatInterval = setInterval(() => step(dir), REPEAT_INTERVAL_MS);
-    }, DEFAULT_INITIAL_REPEAT_DELAY);
-  }
-  function stopRepeat() {
-    repeating = false; repeatDir = 0;
-    if (repeatTimeout) { clearTimeout(repeatTimeout); repeatTimeout = null; }
-    if (repeatInterval) { clearInterval(repeatInterval); repeatInterval = null; }
-  }
-
-  // hint to browser to warm next/prev images (useful for HTTP/2)
-  function warmNeighbors(center) {
-    const n1 = center+1; const p1 = center-1;
-    if (n1 <= TOTAL_PAGES) hintPreload(`pages/${n1}.png`);
-    if (p1 >= 1) hintPreload(`pages/${p1}.png`);
-  }
-
-  // ---------- UI wiring (menus, settings, theme persistence) ----------
   const menuOverlay = document.getElementById('menuOverlay');
+  const menuEl = document.getElementById('menu');
   const pageInput = document.getElementById('pageInput');
   const goBtn = document.getElementById('goBtn');
-  const viewer = document.getElementById('viewer');
+
   const settingsOverlay = document.getElementById('settingsOverlay');
   const settingsPanel = document.getElementById('settingsPanel');
   const btnDark = document.getElementById('btnDark');
   const btnSunset = document.getElementById('btnSunset');
 
-  if (viewer && !viewer.hasAttribute('tabindex')) viewer.setAttribute('tabindex','0');
+  const navOverlay = document.getElementById('navOverlay');
+  const navPanel = document.getElementById('navPanel');
+  const navSearch = document.getElementById('navSearch');
+  const navList = document.getElementById('navList');
 
-  function openMenu(initialPage){ if(!menuOverlay) return; closeSettings(); menuOverlay.classList.add('open'); menuOverlay.setAttribute('aria-hidden','false'); pageInput.value = initialPage ? String(initialPage) : String(current || 1); setTimeout(()=>{ try{ pageInput.focus(); pageInput.select(); }catch(e){} }, 180); }
-  function closeMenu(){ if(!menuOverlay) return; try{ pageInput.blur(); }catch(e){} menuOverlay.classList.remove('open'); menuOverlay.setAttribute('aria-hidden','true'); try{ viewer.focus(); }catch(e){} }
-  function openSettings(){ if(!settingsOverlay) return; closeMenu(); settingsOverlay.classList.add('open'); settingsOverlay.setAttribute('aria-hidden','false'); setTimeout(()=>{ try{ settingsPanel.focus(); }catch(e){} }, 180); }
-  function closeSettings(){ if(!settingsOverlay) return; settingsOverlay.classList.remove('open'); settingsOverlay.setAttribute('aria-hidden','true'); try{ viewer.focus(); }catch(e){} }
+  const bmOverlay = document.getElementById('bmOverlay');
+  const bmPanel = document.getElementById('bmPanel');
+  const bmAddBtn = document.getElementById('bmAddBtn');
+  const bmTrashBtn = document.getElementById('bmTrashBtn');
+  const bmList = document.getElementById('bmList');
 
-  if (menuOverlay) menuOverlay.addEventListener('click', (e) => { if (e.target === menuOverlay) closeMenu(); });
-  const menuEl = document.getElementById('menu'); if (menuEl) menuEl.addEventListener('click', (e) => e.stopPropagation());
-  if (settingsOverlay) settingsOverlay.addEventListener('click', (e) => { if (e.target === settingsOverlay) closeSettings(); });
-  if (settingsPanel) settingsPanel.addEventListener('click', (e) => e.stopPropagation());
+  const bmPromptOverlay = document.getElementById('bmPromptOverlay');
+  const bmPrompt = document.getElementById('bmPrompt');
+  const bmNameInput = document.getElementById('bmNameInput');
+  const bmPromptCancel = document.getElementById('bmPromptCancel');
+  const bmPromptSave = document.getElementById('bmPromptSave');
 
-  if (goBtn) goBtn.addEventListener('click', () => { const v = parseInt(pageInput.value,10); if (isNaN(v)) return; const target = Math.max(1, Math.min(TOTAL_PAGES, v)); showPage(target); closeMenu(); });
-  if (pageInput) pageInput.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); goBtn.click(); } else if (e.key === 'Escape'){ e.preventDefault(); closeMenu(); } });
+  // ---------- State ----------
+  let current = 1;
+  const imageCache = new Map();
+  const inFlight = new Set();
+  const listeners = new Map();
 
-  // theme persistence helpers
-  function saveThemeToStorage(theme){ try{ localStorage.setItem(THEME_KEY, theme); }catch(e){} }
-  function readThemeFromStorage(){ try{ return localStorage.getItem(THEME_KEY); }catch(e){ return null; } }
-  function setButtonStates(theme){
-    if(btnDark) { btnDark.classList.toggle('active', theme === 'dark'); btnDark.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false'); }
-    if(btnSunset) { btnSunset.classList.toggle('active', theme === 'sunset'); btnSunset.setAttribute('aria-pressed', theme === 'sunset' ? 'true' : 'false'); }
-  }
-  function applyTheme(theme){
-    const body = document.body;
-    if (theme === 'sunset'){ body.classList.add('theme-sunset'); body.classList.remove('theme-dark'); setButtonStates('sunset'); }
-    else { body.classList.remove('theme-sunset'); body.classList.add('theme-dark'); setButtonStates('dark'); }
-    saveThemeToStorage(theme);
-  }
-  (function initTheme(){ const stored = readThemeFromStorage(); if (stored === 'sunset') applyTheme('sunset'); else if (stored === 'dark') applyTheme('dark'); else { if (document.body.classList.contains('theme-sunset')) applyTheme('sunset'); else applyTheme('dark'); } })();
-  if (btnDark) btnDark.addEventListener('click', ()=> applyTheme('dark'));
-  if (btnSunset) btnSunset.addEventListener('click', ()=> applyTheme('sunset'));
-
-  // keyboard wiring: arrows, slash, O, Esc
-  window.addEventListener('keydown', (ev) => {
-    const active = document.activeElement;
-    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
-      if (ev.key === 'Escape') { if (menuOverlay && menuOverlay.classList.contains('open')){ ev.preventDefault(); closeMenu(); } if (settingsOverlay && settingsOverlay.classList.contains('open')){ ev.preventDefault(); closeSettings(); } }
-      return;
-    }
-
-    if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
-      ev.preventDefault();
-      if (ev.repeat) return;
-      const dir = ev.key === 'ArrowLeft' ? +1 : -1;
-      startRepeat(dir);
-      return;
-    }
-
-    if (ev.key === '/') { ev.preventDefault(); if (menuOverlay && menuOverlay.classList.contains('open')) closeMenu(); else openMenu(current); return; }
-    if (ev.key === 'o' || ev.key === 'O') { ev.preventDefault(); if (settingsOverlay && settingsOverlay.classList.contains('open')) closeSettings(); else openSettings(); return; }
-    if (ev.key === 'Escape') { if (menuOverlay && menuOverlay.classList.contains('open')) { ev.preventDefault(); closeMenu(); } if (settingsOverlay && settingsOverlay.classList.contains('open')) { ev.preventDefault(); closeSettings(); } return; }
-  }, { passive: false });
-
-  window.addEventListener('keyup', (ev) => { if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') stopRepeat(); }, { passive: true });
-  window.addEventListener('blur', () => stopRepeat(), { passive: true });
-
-  // touch swipe
-  let touchStartX = null;
-  const viewerEl = document.getElementById('viewer');
-  if (viewerEl) {
-    viewerEl.addEventListener('touchstart', (e) => { if (e.touches && e.touches[0]) touchStartX = e.touches[0].clientX; }, { passive: true });
-    viewerEl.addEventListener('touchend', (e) => {
-      if (touchStartX === null) return;
-      const endX = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientX : null;
-      if (endX === null){ touchStartX = null; return; }
-      const dx = endX - touchStartX;
-      if (Math.abs(dx) > 30){ if (dx < 0) nextPage(); else prevPage(); }
-      touchStartX = null;
-    }, { passive: true });
-  }
-
-  (function init() {
-    const stored = readPageFromStorage();
-    current = stored || 1;
-    preloadRange(current, PRELOAD_BEFORE, PRELOAD_AFTER);
-    warmNeighbors(current);
-    setPageImg(current);
-  })();
-
-  (function handleDeepLink() {
-    try {
-      const url = new URL(location.href);
-      const p = parseInt(url.searchParams.get('p') || '', 10);
-      if (!isNaN(p) && p >= 1 && p <= TOTAL_PAGES) showPage(p);
-    } catch (e) { /* ignore */ }
-  })();
+  let repeating = false;
+  let repeatDir = 0;
+  let repeatTimeout = null;
+  let repeatInterval = null;
+  let REPEAT_INTERVAL_MS = DEFAULT_REPEAT_INTERVAL_MS;
+  let PRELOAD_BEFORE = 10;
+  let PRELOAD_AFTER = 10;
 
   const surahs = [
     { number: 1, name: "Al-Fatihah", verses: 7, startPage: 1 },
@@ -455,183 +172,643 @@ document.addEventListener('visibilitychange', () => {
     { number: 114, name: "An-Nas", verses: 6, startPage: 604 }
   ];
 
-  const navOverlay = document.getElementById('navOverlay');
-const navSearch  = document.getElementById('navSearch');
-const navList    = document.getElementById('navList');
+  // network-adaptive
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const effectiveType = conn && conn.effectiveType ? conn.effectiveType : '4g';
+  if (effectiveType.includes('2g') || effectiveType.includes('slow-2g')) {
+    PRELOAD_BEFORE = PRELOAD_AFTER = 2;
+    REPEAT_INTERVAL_MS = 200;
+  } else if (effectiveType.includes('3g')) {
+    PRELOAD_BEFORE = PRELOAD_AFTER = 4;
+    REPEAT_INTERVAL_MS = 140;
+  }
 
-let currentFilter = '';
-let renderToken = 0;
+  function hintPreload(url) {
+    try {
+      const l = document.createElement('link');
+      l.rel = 'preload';
+      l.as = 'image';
+      l.href = url;
+      document.head.appendChild(l);
+      setTimeout(() => l.remove(), 10_000);
+    } catch (e) { }
+  }
 
-function pad3(n){
-  return String(n).padStart(3, '0');
-}
+  // ---------- storage helpers ----------
+  function saveThemeToStorage(theme) { try { localStorage.setItem(THEME_KEY, theme); } catch (e) { } }
+  function readThemeFromStorage() { try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; } }
 
-/* ---------- helpers to enforce ONE panel open ---------- */
-function isOpen(el){
-  return el && el.classList.contains('open');
-}
+  function savePageToStorage() {
+    try {
+      if (typeof current === 'number' && current >= 1 && current <= TOTAL_PAGES) localStorage.setItem(PAGE_KEY, String(current));
+    } catch (e) { }
+  }
+  function readPageFromStorage() {
+    try {
+      const v = parseInt(localStorage.getItem(PAGE_KEY), 10);
+      if (!isNaN(v) && v >= 1 && v <= TOTAL_PAGES) return v;
+    } catch (e) { }
+    return null;
+  }
 
-function closeAllExcept(except){
-  if (typeof closeMenu === 'function' && except !== 'menu') closeMenu();
-  if (typeof closeSettings === 'function' && except !== 'settings') closeSettings();
-  if (except !== 'nav') closeNav();
-}
+  function readBookmarksFromStorage() {
+    try {
+      const raw = localStorage.getItem(BOOKMARKS_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) { }
+    return [];
+  }
+  function saveBookmarksToStorage(list) { try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(list)); } catch (e) { } }
 
-/* ---------- surah item ---------- */
-function createSurahNode(s){
-  const btn = document.createElement('button');
-  btn.className = 'surah-item';
-  btn.type = 'button';
+  // ---------- image loader ----------
+  function responseToBlobUrl(resp) {
+    return resp.blob().then(blob => URL.createObjectURL(blob));
+  }
 
-  const left = document.createElement('div');
-  left.className = 'surah-left';
+  function loadImage(page, cb) {
+    if (page < 1 || page > TOTAL_PAGES) return cb(new Error('out-of-range'));
+    const url = `pages/${page}.png`;
+    const mem = imageCache.get(page);
+    if (mem && mem.blobUrl) return cb(null, mem.blobUrl);
 
-  const titleRow = document.createElement('div');
-  titleRow.className = 'surah-title-row';
+    if (!listeners.has(page)) listeners.set(page, []);
+    listeners.get(page).push(cb);
 
-  const name = document.createElement('div');
-  name.className = 'surah-name';
-  name.textContent = s.name;
+    if (inFlight.has(page)) return;
+    inFlight.add(page);
 
-  const num = document.createElement('div');
-  num.className = 'surah-num';
-  num.textContent = pad3(s.number);
+    (async () => {
+      try {
+        let resp = null;
+        if ('caches' in window) {
+          try {
+            const c = await caches.open('alq-pages-v1');
+            const m = await c.match(url);
+            if (m) resp = m;
+          } catch (e) { }
+        }
+        if (!resp) {
+          hintPreload(url);
+          const fetched = await fetch(url, { credentials: 'same-origin' });
+          if (!fetched.ok) throw new Error('fetch-failed');
+          const clone = fetched.clone();
+          if ('caches' in window) {
+            try {
+              const c = await caches.open('alq-pages-v1');
+              c.put(url, clone).catch(() => { });
+            } catch (e) { }
+          }
+          resp = fetched;
+        }
+        const blobUrl = await responseToBlobUrl(resp);
+        imageCache.set(page, { blobUrl, ts: Date.now() });
+        const list = listeners.get(page) || [];
+        for (const fn of list) { try { fn(null, blobUrl); } catch (e) { } }
+        listeners.delete(page);
+      } catch (err) {
+        const list = listeners.get(page) || [];
+        for (const fn of list) { try { fn(err); } catch (e) { } }
+        listeners.delete(page);
+      } finally {
+        inFlight.delete(page);
+      }
+    })();
+  }
 
-  titleRow.appendChild(name);
-  titleRow.appendChild(num);
-
-  const verses = document.createElement('div');
-  verses.className = 'surah-verses';
-  verses.textContent = `${s.verses} verses`;
-
-  left.appendChild(titleRow);
-  left.appendChild(verses);
-
-  const right = document.createElement('div');
-  right.className = 'surah-page';
-  right.textContent = s.startPage;
-
-  btn.appendChild(left);
-  btn.appendChild(right);
-
-  btn.addEventListener('click', () => {
-    if (typeof window.showPage === 'function') {
-      window.showPage(s.startPage);
+  function preloadRange(center, before = PRELOAD_BEFORE, after = PRELOAD_AFTER) {
+    const toFetch = [];
+    for (let i = center - before; i <= center + after; i++) {
+      if (i < 1 || i > TOTAL_PAGES) continue;
+      if (imageCache.has(i) || inFlight.has(i)) continue;
+      toFetch.push(i);
     }
-    closeNav();
+    let idx = 0;
+    const concurrency = Math.max(1, Math.min(MAX_CONCURRENT_PREFETCH, Math.ceil((navigator.hardwareConcurrency || 4) / 2)));
+    function nextSlot() {
+      if (idx >= toFetch.length) return;
+      const page = toFetch[idx++];
+      loadImage(page, () => { });
+      setTimeout(nextSlot, 50);
+    }
+    for (let k = 0; k < concurrency; k++) nextSlot();
+  }
+
+  function trimCache(center) {
+    if (imageCache.size <= CACHE_LIMIT) return;
+    const pages = Array.from(imageCache.keys()).sort((a, b) => Math.abs(a - center) - Math.abs(b - center));
+    while (imageCache.size > CACHE_LIMIT) {
+      const toRemove = pages.pop();
+      const entry = imageCache.get(toRemove);
+      if (entry && entry.blobUrl) {
+        try { URL.revokeObjectURL(entry.blobUrl); } catch (e) { }
+      }
+      imageCache.delete(toRemove);
+    }
+  }
+
+  function setPageImg(page) {
+    if (page < 1 || page > TOTAL_PAGES) return;
+    const entry = imageCache.get(page);
+    if (entry && entry.blobUrl) { pageImg.src = entry.blobUrl; return; }
+    loadImage(page, (err, src) => { if (!err && src) pageImg.src = src; });
+  }
+
+  // ---------- page navigation ----------
+  function showPage(target, direction = 0) {
+    if (target < 1 || target > TOTAL_PAGES) return;
+    setPageImg(target);
+    current = target;
+    savePageToStorage();
+    preloadRange(target, PRELOAD_BEFORE, PRELOAD_AFTER);
+    trimCache(current);
+    updateBookmarkIcon();
+    renderBmList();
+  }
+  window.showPage = showPage;
+
+  function nextPage() { const targ = current >= TOTAL_PAGES ? 1 : current + 1; showPage(targ, +1); }
+  function prevPage() { const targ = current <= 1 ? TOTAL_PAGES : current - 1; showPage(targ, -1); }
+  function step(dir) { if (dir === +1) nextPage(); else if (dir === -1) prevPage(); }
+
+  function startRepeat(dir) {
+    if (repeating) return;
+    repeating = true; repeatDir = dir;
+    step(dir);
+    repeatTimeout = setTimeout(() => {
+      repeatInterval = setInterval(() => step(dir), REPEAT_INTERVAL_MS);
+    }, DEFAULT_INITIAL_REPEAT_DELAY);
+  }
+  function stopRepeat() {
+    repeating = false; repeatDir = 0;
+    if (repeatTimeout) { clearTimeout(repeatTimeout); repeatTimeout = null; }
+    if (repeatInterval) { clearInterval(repeatInterval); repeatInterval = null; }
+  }
+
+  // ---------- Theme handling ----------
+  function setButtonStates(theme) {
+    if (btnDark) { btnDark.classList.toggle('active', theme === 'dark'); btnDark.setAttribute('aria-pressed', theme === 'dark'); }
+    if (btnSunset) { btnSunset.classList.toggle('active', theme === 'sunset'); btnSunset.setAttribute('aria-pressed', theme === 'sunset'); }
+  }
+
+  function applyTheme(theme) {
+    const body = document.body;
+    if (theme === 'sunset') { body.classList.add('theme-sunset'); body.classList.remove('theme-dark'); setButtonStates('sunset'); }
+    else { body.classList.remove('theme-sunset'); body.classList.add('theme-dark'); setButtonStates('dark'); }
+    saveThemeToStorage(theme);
+  }
+  (function initTheme() { const stored = readThemeFromStorage(); if (stored === 'sunset') applyTheme('sunset'); else if (stored === 'dark') applyTheme('dark'); else { if (document.body.classList.contains('theme-sunset')) applyTheme('sunset'); else applyTheme('dark'); } })();
+  if (btnDark) btnDark.addEventListener('click', () => applyTheme('dark'));
+  if (btnSunset) btnSunset.addEventListener('click', () => applyTheme('sunset'));
+
+  // ---------- Overlays: Menu / Settings / Nav / Bookmarks ----------
+  function isOpen(el) { return el && el.classList.contains('open'); }
+  function closeAllExcept(except) {
+    if (except !== 'menu' && isOpen(menuOverlay)) closeMenu();
+    if (except !== 'settings' && isOpen(settingsOverlay)) closeSettings();
+    if (except !== 'nav' && isOpen(navOverlay)) closeNav();
+    if (except !== 'bm' && isOpen(bmOverlay)) closeBm();
+  }
+
+  function openMenu(initialPage) {
+    closeAllExcept('menu');
+    if (!menuOverlay) return;
+    menuOverlay.classList.add('open'); menuOverlay.setAttribute('aria-hidden', 'false');
+    pageInput.value = initialPage ? String(initialPage) : String(current || 1);
+    setTimeout(() => { try { pageInput.focus(); pageInput.select(); } catch (e) { } }, 180);
+  }
+  function closeMenu() {
+    if (!menuOverlay) return;
+    try { pageInput.blur(); } catch (e) { }
+    menuOverlay.classList.remove('open'); menuOverlay.setAttribute('aria-hidden', 'true');
+    try { viewer.focus(); } catch (e) { }
+  }
+
+  function openSettings() {
+    closeAllExcept('settings');
+    if (!settingsOverlay) return;
+    settingsOverlay.classList.add('open'); settingsOverlay.setAttribute('aria-hidden', 'false');
+    setTimeout(() => { try { settingsPanel.focus(); } catch (e) { } }, 180);
+  }
+  function closeSettings() {
+    if (!settingsOverlay) return;
+    settingsOverlay.classList.remove('open'); settingsOverlay.setAttribute('aria-hidden', 'true');
+    try { viewer.focus(); } catch (e) { }
+  }
+
+  function openNav() {
+    closeAllExcept('nav');
+    if (!navOverlay) return;
+    navOverlay.classList.add('open'); navOverlay.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(() => { try { navSearch.focus(); navSearch.select(); } catch (e) { } applyFilter(navSearch.value); });
+  }
+  function closeNav() {
+    if (!navOverlay) return;
+    navOverlay.classList.remove('open'); navOverlay.setAttribute('aria-hidden', 'true');
+    try { viewer.focus(); } catch (e) { }
+  }
+
+  // Bookmarks panel functions (open/close)
+  function openBm() {
+    closeAllExcept('bm');
+    if (!bmOverlay) return;
+    bmOverlay.classList.add('open'); bmOverlay.setAttribute('aria-hidden', 'false');
+    renderBmList();
+    setTimeout(() => { try { bmList.focus(); } catch (e) { } }, 100);
+  }
+  function closeBm() {
+    if (!bmOverlay) return;
+    bmOverlay.classList.remove('open'); bmOverlay.setAttribute('aria-hidden', 'true');
+    try { viewer.focus(); } catch (e) { }
+    setBmDeleteMode(false);
+  }
+
+  // overlay click-to-close handlers
+  if (menuOverlay) menuOverlay.addEventListener('click', (e) => { if (e.target === menuOverlay) closeMenu(); });
+  if (menuEl) menuEl.addEventListener('click', (e) => e.stopPropagation());
+  if (settingsOverlay) settingsOverlay.addEventListener('click', (e) => { if (e.target === settingsOverlay) closeSettings(); });
+  if (settingsPanel) settingsPanel.addEventListener('click', (e) => e.stopPropagation());
+  if (navOverlay) navOverlay.addEventListener('click', (e) => { if (e.target === navOverlay) closeNav(); });
+  if (navPanel) navPanel.addEventListener('click', (e) => e.stopPropagation());
+  if (bmOverlay) bmOverlay.addEventListener('click', (e) => { if (e.target === bmOverlay) closeBm(); });
+  if (bmPanel) bmPanel.addEventListener('click', (e) => e.stopPropagation());
+
+  // menu go button behavior
+  if (goBtn) goBtn.addEventListener('click', () => {
+    const v = parseInt(pageInput.value, 10);
+    if (isNaN(v)) return;
+    const target = Math.max(1, Math.min(TOTAL_PAGES, v));
+    showPage(target);
+    closeMenu();
+  });
+  if (pageInput) pageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); goBtn.click(); }
+    else if (e.key === 'Escape') { e.preventDefault(); closeMenu(); }
   });
 
-  return btn;
-}
+  // ---------- Bookmark data + UI ----------
+  // Bookmark object: { id: number (ts), page: number, name: string }
+  let bookmarks = readBookmarksFromStorage();
+  let bmDeleteMode = false; // when true, bookmarks show delete buttons
 
-/* ---------- rendering ---------- */
-function renderList(items){
-  renderToken++;
-  const token = renderToken;
-  navList.innerHTML = '';
+  function isPageBookmarked(page) { return bookmarks.some(b => b.page === page); }
 
-  if (!items || !items.length) return;
-
-  const frag = document.createDocumentFragment();
-  let i = 0;
-  const CHUNK = 20;
-
-  function step(){
-    if (token !== renderToken) return;
-    const end = Math.min(i + CHUNK, items.length);
-    for (; i < end; i++) frag.appendChild(createSurahNode(items[i]));
-    navList.appendChild(frag);
-    if (i < items.length) requestAnimationFrame(step);
+  // update the bottom-left bookmark icon visibility & create if missing
+  function ensureBmIcon() {
+    let bmIconEl = document.querySelector('.bookmark-icon');
+    if (bmIconEl) return bmIconEl;
+    const wrap = document.createElement('div');
+    wrap.className = 'bookmark-icon';
+    wrap.setAttribute('aria-hidden', 'true');
+    const img = document.createElement('div');
+    img.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="bi bi-bookmark-fill">
+            <path d="M2 2v13.5a.5.5 0 0 0 .74.439L8 13.069l5.26 2.87A.5.5 0 0 0 14 15.5V2a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2"/>
+          </svg>`;
+    img.setAttribute('aria-hidden', 'true');
+    wrap.appendChild(img);
+    document.body.appendChild(wrap);
+    wrap.addEventListener('click', (e) => { e.stopPropagation(); openBm(); });
+    return wrap;
   }
 
-  step();
-}
+  function updateBookmarkIcon() {
+    const el = ensureBmIcon();
+    const visible = isPageBookmarked(current);
+    el.classList.toggle('visible', visible);
+    el.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  }
 
-/* ---------- filtering ---------- */
-function applyFilter(q){
-  const norm = String(q || '').trim().toLowerCase();
-  if (!norm) return renderList(surahs);
+  function addBookmarkForCurrent(name) {
+    const page = current;
+    if (!page || page < 1 || page > TOTAL_PAGES) return { ok: false, reason: 'invalid-page' };
+    if (bookmarks.some(b => b.page === page)) return { ok: false, reason: 'exists' };
+    const id = Date.now();
+    const item = { id, page, name: (name && name.trim()) ? name.trim() : `Page ${page}` };
+    bookmarks.unshift(item);
+    saveBookmarksToStorage(bookmarks);
+    renderBmList();
+    updateBookmarkIcon();
+    return { ok: true, item };
+  }
 
-  renderList(
-    surahs.filter(s =>
-      s.name.toLowerCase().includes(norm) ||
-      String(s.number) === norm ||
-      pad3(s.number) === norm
-    )
-  );
-}
+  function removeBookmarkById(id) {
+    const before = bookmarks.length;
+    bookmarks = bookmarks.filter(b => b.id !== id);
+    if (bookmarks.length !== before) {
+      saveBookmarksToStorage(bookmarks);
+      renderBmList();
+      updateBookmarkIcon();
+      return true;
+    }
+    return false;
+  }
+  function removeBookmarkByPage(page) { const before = bookmarks.length; bookmarks = bookmarks.filter(b => b.page !== page); if (bookmarks.length !== before) { saveBookmarksToStorage(bookmarks); renderBmList(); updateBookmarkIcon(); return true; } return false; }
 
-function debounce(fn, ms){
-  let t;
-  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
-}
+  // ---------- Inject surah font and pages metadata ----------
+  let pagesMeta = null;
+  let pagesMetaLoaded = false;
 
-const debouncedFilter = debounce(applyFilter, 180);
+  async function loadPagesMeta() {
+    try {
+      const resp = await fetch(PAGES_JSON_URL, { cache: 'force-cache' });
+      if (!resp.ok) throw new Error('fetch-failed');
+      pagesMeta = await resp.json();
+    } catch (e) {
+      pagesMeta = null;
+    } finally {
+      pagesMetaLoaded = true;
+    }
+  }
 
-/* ---------- nav open / close ---------- */
-function openNav(){
-  closeAllExcept('nav');
+  function pad3(n) { return String(n).padStart(3, '0'); }
 
-  navOverlay.classList.add('open');
-  navOverlay.setAttribute('aria-hidden', 'false');
+  function getSurahLabelForPage(page) {
+    // prefer pagesMeta when available
+    if (pagesMeta && Array.isArray(pagesMeta)) {
+      const p = pagesMeta.find(x => Number(x.page) === Number(page));
+      if (p && p.start && p.end) {
+        const s1 = p.start; const s2 = p.end;
+        const s1num = pad3(Number(s1.surah_number));
+        const s2num = pad3(Number(s2.surah_number));
+        const s1name = (s1.name && (s1.name.transliteration)) || s1.name || 'Unknown';
+        const s2name = (s2.name && (s2.name.transliteration)) || s2.name || 'Unknown';
+        if (s1name == s2name) {
+          return `${s1name} <div class="small-num">${s1num}</div>`;
+        }
+        return `${s1name} <div class="small-num">${s1num}</div> - ${s2name} <div class="small-num">${s2num}</div>`;
+      }
+    }
 
-  requestAnimationFrame(() => {
-    try { navSearch.focus(); navSearch.select(); } catch {}
-    applyFilter(navSearch.value);
+    // fallback to surahs array
+    if (surahs && Array.isArray(surahs) && surahs.length) {
+      // find surah where startPage <= page and next startPage > page
+      let idx = surahs.findIndex((s, i) => {
+        const next = surahs[i + 1];
+        if (!next) return page >= s.startPage;
+        return page >= s.startPage && page < next.startPage;
+      });
+      if (idx === -1) idx = 0;
+      const s1 = surahs[idx];
+      // find end surah: if page overlaps into next surah start, pick that next
+      let idx2 = idx;
+      if (idx + 1 < surahs.length && page >= surahs[idx + 1].startPage) idx2 = idx + 1;
+      const s2 = surahs[idx2] || s1;
+      return `${pad3(Number(s1.number))} ${s1.name} - ${pad3(Number(s2.number))} ${s2.name}`;
+    }
+
+    return `Page ${page}`;
+  }
+
+  // ---------- render bookmarks into bmList (single unified implementation) ----------
+  function renderBmList() {
+    if (!bmList) return;
+    if (!pagesMetaLoaded) loadPagesMeta();
+
+    bmList.innerHTML = '';
+    if (!bookmarks || bookmarks.length === 0) return;
+
+    const frag = document.createDocumentFragment();
+    const CHUNK = 30;
+    let i = 0;
+
+    function stepChunk() {
+      const end = Math.min(i + CHUNK, bookmarks.length);
+      for (; i < end; i++) {
+        const bm = bookmarks[i];
+        const item = document.createElement('div');
+        item.className = 'bm-item' + (bmDeleteMode ? ' deletable' : '');
+        item.setAttribute('data-id', String(bm.id));
+
+        const left = document.createElement('div'); left.className = 'bm-left';
+        const name = document.createElement('div'); name.className = 'bm-name'; name.textContent = bm.name;
+        const small = document.createElement('div'); small.style.fontSize = '12px'; small.style.color = 'var(--muted-text-2)'; small.style.display = 'flex';
+        small.innerHTML = getSurahLabelForPage(bm.page);
+
+        left.appendChild(name); left.appendChild(small);
+
+        const rightWrap = document.createElement('div'); rightWrap.style.display = 'flex'; rightWrap.style.alignItems = 'center'; rightWrap.style.gap = '8px';
+        const pageEl = document.createElement('div'); pageEl.className = 'bm-page';
+        pageEl.innerHTML = bm.page;
+        rightWrap.appendChild(pageEl);
+
+        // if showing a delete icon, create it but do not rely on it for logic;
+        // clicking the whole item will handle delete vs navigate based on bmDeleteMode
+        if (bmDeleteMode) {
+          const del = document.createElement('div');
+          del.className = 'bm-delete-btn';
+          del.title = 'Delete bookmark';
+          del.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="bi bi-x-lg"
+  ><path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/></svg>`;
+          // make clicking the small delete icon act as delete (prevents double-handling)
+          del.addEventListener('click', (e) => { e.stopPropagation(); removeBookmarkById(bm.id); });
+          rightWrap.appendChild(del);
+        }
+
+        item.appendChild(left);
+        item.appendChild(rightWrap);
+
+        // unified item click: delete when bmDeleteMode, otherwise navigate
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (bmDeleteMode) {
+            removeBookmarkById(bm.id);
+          } else {
+            showPage(bm.page);
+            closeBm();
+          }
+        });
+
+        frag.appendChild(item);
+      }
+      bmList.appendChild(frag);
+      if (i < bookmarks.length) requestAnimationFrame(stepChunk);
+    }
+
+    stepChunk();
+  }
+
+  // bm delete mode toggle
+  function setBmDeleteMode(on) {
+    bmDeleteMode = !!on;
+    if (bmTrashBtn) {
+      bmTrashBtn.innerHTML = bmDeleteMode
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-lg" viewBox="0 0 16 16"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/></svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash3-fill" viewBox="0 0 16 16"><path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5M4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06m6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528M8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5"/></svg>`;
+    }
+    renderBmList();
+  }
+
+
+  // ---------- BM Prompt (add bookmark) ----------
+  function openBmPrompt() {
+    if (!bmPromptOverlay) return;
+    bmPromptOverlay.classList.add('open');
+    bmPromptOverlay.setAttribute('aria-hidden', 'false');
+    bmNameInput.value = `Bookmark — page ${current}`;
+    setTimeout(() => { try { bmNameInput.focus(); bmNameInput.select(); } catch (e) { } }, 120);
+  }
+  function closeBmPrompt() { if (!bmPromptOverlay) return; bmPromptOverlay.classList.remove('open'); bmPromptOverlay.setAttribute('aria-hidden', 'true'); }
+
+  if (bmAddBtn) bmAddBtn.addEventListener('click', (e) => { e.stopPropagation(); openBmPrompt(); });
+  if (bmPromptCancel) bmPromptCancel.addEventListener('click', (e) => { e.preventDefault(); closeBmPrompt(); });
+  if (bmPromptSave) bmPromptSave.addEventListener('click', (e) => {
+    e.preventDefault();
+    const name = bmNameInput.value || `Page ${current}`;
+    if (bookmarks.some(b => b.page === current)) { closeBmPrompt(); openBm(); return; }
+    const id = Date.now();
+    const item = { id, page: current, name: name.trim() || `Page ${current}` };
+    bookmarks.unshift(item);
+    saveBookmarksToStorage(bookmarks);
+    closeBmPrompt();
+    renderBmList();
+    updateBookmarkIcon();
   });
-}
 
-function closeNav(){
-  navOverlay.classList.remove('open');
-  navOverlay.setAttribute('aria-hidden', 'true');
-  try { document.getElementById('viewer').focus(); } catch {}
-}
+  if (bmTrashBtn) bmTrashBtn.addEventListener('click', (e) => { e.stopPropagation(); setBmDeleteMode(!bmDeleteMode); });
 
-/* ---------- clicks ---------- */
-navOverlay.addEventListener('click', e => {
-  if (e.target === navOverlay) closeNav();
-});
+  // ---------- Navigation panel (surah list) ----------
+  function createSurahNode(s) {
+    const btn = document.createElement('button');
+    btn.className = 'surah-item';
+    btn.type = 'button';
+    btn.setAttribute('data-surah', s.number);
 
-document.getElementById('navPanel')
-  .addEventListener('click', e => e.stopPropagation());
+    const left = document.createElement('div'); left.className = 'surah-left';
+    const titleRow = document.createElement('div'); titleRow.className = 'surah-title-row';
 
-/* ---------- search ---------- */
-navSearch.addEventListener('input', e => {
-  currentFilter = e.target.value;
-  debouncedFilter(currentFilter);
-});
+    const name = document.createElement('div'); name.className = 'surah-name'; name.textContent = s.name;
 
-/* ---------- keyboard (STRICT exclusivity) ---------- */
-window.addEventListener('keydown', ev => {
-  const active = document.activeElement;
-  const typing = active && (active.tagName === 'INPUT' || active.isContentEditable);
+    const num = document.createElement('div'); num.className = 'surah-num'; num.textContent = pad3(s.number);
 
-  if (typing && ev.key !== 'Escape') return;
+    titleRow.appendChild(name);
+    titleRow.appendChild(num);
 
-  if (ev.key === 'n' || ev.key === 'N') {
-    ev.preventDefault();
-    isOpen(navOverlay) ? closeNav() : openNav();
+    const verses = document.createElement('div'); verses.className = 'surah-verses'; verses.textContent = `${s.verses} verses`;
+
+    left.appendChild(titleRow);
+    left.appendChild(verses);
+
+    const right = document.createElement('div'); right.className = 'surah-page';
+    right.textContent = s.startPage;
+
+    btn.appendChild(left);
+    btn.appendChild(right);
+    btn.addEventListener('click', () => { if (typeof window.showPage === 'function') window.showPage(s.startPage); closeNav(); });
+    return btn;
   }
 
-  if (ev.key === '/' && typeof openMenu === 'function') {
-    ev.preventDefault();
-    closeNav();
-    openMenu();
+  let renderTokenNav = 0;
+  function renderList(items) {
+    renderTokenNav++;
+    const token = renderTokenNav;
+    if (!navList) return;
+    navList.innerHTML = '';
+    if (!items || items.length === 0) return;
+    const frag = document.createDocumentFragment();
+    let i = 0;
+    const CHUNK = 20;
+    function doChunk() {
+      if (token !== renderTokenNav) return;
+      const end = Math.min(i + CHUNK, items.length);
+      for (; i < end; i++) frag.appendChild(createSurahNode(items[i]));
+      navList.appendChild(frag);
+      if (i < items.length) requestAnimationFrame(doChunk);
+    }
+    doChunk();
   }
 
-  if ((ev.key === 'o' || ev.key === 'O') && typeof openSettings === 'function') {
-    ev.preventDefault();
-    closeNav();
-    openSettings();
+  function applyFilter(q) {
+    if (typeof surahs === 'undefined') return;
+    const norm = String(q || '').trim().toLowerCase();
+    if (!norm) { renderList(surahs); return; }
+    const filtered = surahs.filter(s => {
+      if (String(s.number) === norm) return true;
+      if (pad3(s.number) === norm) return true;
+      if (s.name.toLowerCase().includes(norm)) return true;
+      return false;
+    });
+    renderList(filtered);
   }
 
-  if (ev.key === 'Escape' && isOpen(navOverlay)) {
-    ev.preventDefault();
-    closeNav();
-  }
-}, { passive: false });
+  if (navSearch) navSearch.addEventListener('input', (e) => { applyFilter(e.target.value); });
 
-/* ---------- initial ---------- */
-requestAnimationFrame(() => renderList(surahs));
+  // ---------- keyboard wiring ----------
+  window.addEventListener('keydown', (ev) => {
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+      if (ev.key === 'Escape') {
+        if (isOpen(menuOverlay)) { ev.preventDefault(); closeMenu(); }
+        if (isOpen(settingsOverlay)) { ev.preventDefault(); closeSettings(); }
+        if (isOpen(navOverlay)) { ev.preventDefault(); closeNav(); }
+        if (isOpen(bmOverlay)) { ev.preventDefault(); closeBm(); }
+      }
+      return;
+    }
+
+    if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
+      ev.preventDefault();
+      if (ev.repeat) return;
+      const dir = ev.key === 'ArrowLeft' ? +1 : -1;
+      startRepeat(dir);
+      return;
+    }
+
+    if (ev.key === '/') { ev.preventDefault(); if (isOpen(menuOverlay)) closeMenu(); else openMenu(current); return; }
+    if (ev.key === 'o' || ev.key === 'O') { ev.preventDefault(); if (isOpen(settingsOverlay)) closeSettings(); else openSettings(); return; }
+    if (ev.key === 'n' || ev.key === 'N') { ev.preventDefault(); if (isOpen(navOverlay)) closeNav(); else openNav(); return; }
+    if (ev.key === 'b' || ev.key === 'B') { ev.preventDefault(); if (isOpen(bmOverlay)) closeBm(); else openBm(); return; }
+    if (ev.key === 'Escape') { if (isOpen(menuOverlay)) { ev.preventDefault(); closeMenu(); } if (isOpen(settingsOverlay)) { ev.preventDefault(); closeSettings(); } if (isOpen(navOverlay)) { ev.preventDefault(); closeNav(); } if (isOpen(bmOverlay)) { ev.preventDefault(); closeBm(); } return; }
+  }, { passive: false });
+
+  window.addEventListener('keyup', (ev) => { if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') stopRepeat(); }, { passive: true });
+  window.addEventListener('blur', () => stopRepeat(), { passive: true });
+
+  // ---------- touch swipe ----------
+  let touchStartX = null;
+  if (viewer) {
+    viewer.addEventListener('touchstart', (e) => { if (e.touches && e.touches[0]) touchStartX = e.touches[0].clientX; }, { passive: true });
+    viewer.addEventListener('touchend', (e) => {
+      if (touchStartX === null) return;
+      const endX = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientX : null;
+      if (endX === null) { touchStartX = null; return; }
+      const dx = endX - touchStartX;
+      if (Math.abs(dx) > 30) { if (dx < 0) nextPage(); else prevPage(); }
+      touchStartX = null;
+    }, { passive: true });
+  }
+
+  // ---------- init / deep-link ----------
+  (function init() {
+    bookmarks = readBookmarksFromStorage();
+    const stored = readPageFromStorage();
+    current = stored || 1;
+    preloadRange(current, PRELOAD_BEFORE, PRELOAD_AFTER);
+    hintPreload(`pages/${current}.png`);
+    setPageImg(current);
+    if (typeof surahs !== 'undefined' && navList) requestAnimationFrame(() => renderList(surahs));
+    ensureBmIcon();
+    updateBookmarkIcon();
+    renderBmList();
+  })();
+
+  (function handleDeepLink() {
+    try {
+      const url = new URL(location.href);
+      const p = parseInt(url.searchParams.get('p') || '', 10);
+      if (!isNaN(p) && p >= 1 && p <= TOTAL_PAGES) showPage(p);
+    } catch (e) { }
+  })();
+
+  // persist last page
+  window.addEventListener('beforeunload', savePageToStorage, { passive: true });
+  window.addEventListener('pagehide', savePageToStorage, { passive: true });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') savePageToStorage(); }, { passive: true });
+
+  // Expose useful functions
+  window.openBookmarks = openBm;
+  window.closeBookmarks = closeBm;
+  window.addBookmarkForCurrent = addBookmarkForCurrent;
+  window.removeBookmarkById = removeBookmarkById;
 
 })();
