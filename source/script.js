@@ -8,6 +8,8 @@
   const THEME_KEY = 'alquran_theme';
   const PAGE_KEY = 'alquran_last_page';
   const BOOKMARKS_KEY = 'alquran_bookmarks';
+  const QUALITY_KEY = 'alquran_quality';
+
   const PAGES_JSON_URL = 'https://raw.githubusercontent.com/rn0x/Quran-Data/refs/heads/version-2.0/data/pagesQuran.json';
 
   // ---------- DOM refs ----------
@@ -23,6 +25,8 @@
   const settingsPanel = document.getElementById('settingsPanel');
   const btnDark = document.getElementById('btnDark');
   const btnSunset = document.getElementById('btnSunset');
+  const btnQualityDefault = document.getElementById('btnQualityDefault');
+  const btnQuality2k = document.getElementById('btnQuality2k');
 
   const navOverlay = document.getElementById('navOverlay');
   const navPanel = document.getElementById('navPanel');
@@ -198,6 +202,8 @@
   function saveThemeToStorage(theme) { try { localStorage.setItem(THEME_KEY, theme); } catch (e) { } }
   function readThemeFromStorage() { try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; } }
 
+  function saveQualityToStorage(q){ try { localStorage.setItem(QUALITY_KEY, q); } catch(e) {} }
+  function readQualityFromStorage(){ try { return localStorage.getItem(QUALITY_KEY); } catch(e){ return null; } }
   function savePageToStorage() {
     try {
       if (typeof current === 'number' && current >= 1 && current <= TOTAL_PAGES) localStorage.setItem(PAGE_KEY, String(current));
@@ -222,6 +228,63 @@
   }
   function saveBookmarksToStorage(list) { try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(list)); } catch (e) { } }
 
+  let quality = readQualityFromStorage() || 'default'; // 'default' or '2k'
+
+function getPageUrl(page){
+  const prefix = (quality === '2k') ? 'hd_pages' : 'pages';
+  return `${prefix}/${page}.png`;
+}
+
+// --- add helper: clear in-memory cache + revoke blob URLs
+function clearImageCache() {
+  try {
+    for (const [pg, entry] of imageCache) {
+      if (entry && entry.blobUrl) {
+        try { URL.revokeObjectURL(entry.blobUrl); } catch (e) {}
+      }
+    }
+  } catch (e) {}
+  imageCache.clear();
+  inFlight.clear();
+  listeners.clear(); // remove pending listeners so loadImage will re-register
+}
+
+// --- replace your applyQuality with this version
+function applyQuality(q){
+  quality = (q === '2k') ? '2k' : 'default';
+  saveQualityToStorage(quality);
+
+  // update buttons immediately
+  if (typeof setQualityButtonStates === 'function') setQualityButtonStates();
+
+  // clear in-memory cache so setPageImg fetches from the new folder
+  clearImageCache();
+
+  // re-preload and then reload current page from new source
+  preloadRange(current, PRELOAD_BEFORE, PRELOAD_AFTER);
+  // small delay so sample is visible before the real image replaces it
+  setTimeout(() => setPageImg(current), 60);
+}
+
+
+(function initQuality(){
+  // set initial UI state after DOM buttons exist
+  const stored = readQualityFromStorage();
+  if (stored) quality = stored;
+  // callers below will wire UI buttons
+})();
+
+function setQualityButtonStates() {
+    if (btnQualityDefault) btnQualityDefault.classList.toggle('active', quality === 'default');
+    if (btnQuality2k) btnQuality2k.classList.toggle('active', quality === '2k');
+  }
+
+  if (btnQualityDefault) btnQualityDefault.addEventListener('click', ()=> { applyQuality('default'); setQualityButtonStates(); });
+  if (btnQuality2k) btnQuality2k.addEventListener('click', ()=> { applyQuality('2k'); setQualityButtonStates(); });
+
+  // initialize UI
+  setQualityButtonStates();
+
   // ---------- image loader ----------
   function responseToBlobUrl(resp) {
     return resp.blob().then(blob => URL.createObjectURL(blob));
@@ -229,7 +292,7 @@
 
   function loadImage(page, cb) {
     if (page < 1 || page > TOTAL_PAGES) return cb(new Error('out-of-range'));
-    const url = `pages/${page}.png`;
+    const url = getPageUrl(page);
     const mem = imageCache.get(page);
     if (mem && mem.blobUrl) return cb(null, mem.blobUrl);
 
@@ -634,7 +697,8 @@
     if (bmTrashBtn) {
       bmTrashBtn.innerHTML = bmDeleteMode
         ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-lg" viewBox="0 0 16 16"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/></svg>`
-        : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash3-fill" viewBox="0 0 16 16"><path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5M4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06m6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528M8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5"/></svg>`;
+        : `<i data-feather="trash-2"></i>`;
+    feather.replace();
     }
     renderBmList();
   }
