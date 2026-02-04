@@ -533,12 +533,6 @@ body.theme-sunset .nav-list::-webkit-scrollbar-thumb {
     .nav-list { height: 320px; }
 }
 
-/* ---------- existing styles (keep all your previous rules) ----------
-   (I assume you already have the large block you posted earlier — keep it)
-   Below are the new bookmark-panel & prompt styles appended.
-*/
-
-/* Bookmark icon (visible only on bookmarked page) - kept for desktop & mobile */
 .bookmark-icon {
   position: absolute;
   transform: translate(-50%, 0);
@@ -601,7 +595,7 @@ body.theme-sunset .bookmark-icon img {
   gap: 12px;
 }
 .bm-sub { margin-top: 2px; margin-bottom: 0px; font-size: 13px; color: var(--muted-text-2); }
-.bm-actions { display: flex; gap: 8px; align-items: center; }
+.bm-actions { display: flex; align-items: center; }
 .icon-btn {
   display: inline-flex;
   align-items: center;
@@ -612,12 +606,10 @@ body.theme-sunset .bookmark-icon img {
   background: transparent;
   border: 0;
   cursor: pointer;
-  padding: 4px;
   color: var(--muted-text);
 }
-.icon-btn svg { display:block; width:16px; height:16px; fill: var(--muted-text); 
-  transition: fill 200ms ease;}
-.icon-btn:hover svg { fill: var(--accent); }
+.icon-btn svg { display:block; width:16px; height:16px; transition: color 200ms ease;}
+.icon-btn:hover { color: var(--accent); }
 
 /* Bookmark list item (re-using .surah-item style as base but simpler) */
 .bm-item {
