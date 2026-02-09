@@ -2,7 +2,7 @@
 
 ## Overview
 - A lightweight, keyboard-friendly, open-sourced Quran viewer with fast preloading, page navigation.  
-- Read the Quran easily while recording your progress.
+- Read the Quran easily while recording your progress. Great for completing the Quran during Ramadan.
 - The future is here, no need for a physical book when you can read the Quran in your browser.
 
 ## Page Preview
@@ -16,6 +16,7 @@
 - `/` opens Page menu
 - `o` toggles Settings menu
 - `n` toggles Navigation Menu
+- `b` toggles Bookmarks Menu
 - `<` `>` arrow keys navigate pages
 
 <p align="center">
