@@ -4,6 +4,8 @@
     --text: #eee;
     --muted-text: #b3b3b3;
     --muted-text-2: #686868;
+    --muted-text-3: #1f1f1f;
+    --muted-bg: #ffffff05;
     --border: #333;
     --accent: #2ca4ab;
     --color-transition: 260ms ease;
@@ -17,6 +19,8 @@
     --text: #0a0a0a;
     --muted-text: #333;
     --muted-text-2: #a39789;
+    --muted-text-3: #b9a692;
+    --muted-bg: #b9a69225;
     --border: #e6d5c0;
     --accent: #72603f;
 }
@@ -92,6 +96,30 @@ body:not(.theme-sunset) #pageImg {
 body.theme-sunset #pageImg {
     filter: none;
 }
+
+/* custom tooltip for button[title] */
+.custom-tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: var(--accent);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translateY(6px) scale(.96);
+  opacity: 0;
+  transition: opacity 180ms ease, transform 180ms cubic-bezier(.2,.9,.2,1);
+  z-index: 14000;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+  will-change: transform, opacity;
+}
+.custom-tooltip.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
 
 /* Page menu (bottom-right slide) */
 #menuOverlay {
@@ -331,18 +359,36 @@ input[type=number] {
     gap: 8px;
 }
 
+/* nav tabs */
+.nav-tabs {
+    align-items:center;
+    justify-content: center;
+    background: var(--muted-bg);
+    border-radius: 999px;
+    padding: 3px;
+}
+.nav-tab {
+  background: transparent;
+  width: 50%;
+  border: none;
+  color: var(--muted-text-2);
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 150ms ease;
+}
+.nav-tab:hover { background-color: var(--muted-bg); }
+.nav-tab[aria-pressed="true"] {
+  background-color: var(--muted-text-3);
+  color: #fff;
+}
+
 h3 {
     margin: 0px 2px 0px 0px;
     font-weight: 600;
     font-size: 16px;
     color: var(--text);
-}
-
-#navPanel p {
-    margin-top: -5px;
-    margin-bottom: 0;
-    font-size: 13px;
-    color: var(--muted-text-2);
 }
 
 #navOverlay.open {
@@ -433,7 +479,7 @@ body.theme-sunset .nav-list::-webkit-scrollbar-thumb {
     padding: 0;                 /* reset padding so children control spacing uniformly */
     border-radius: 8px;
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0);
     margin-bottom: 8px;
     cursor: pointer;
     transition: border-color 160ms ease;
@@ -482,6 +528,7 @@ body.theme-sunset .nav-list::-webkit-scrollbar-thumb {
 
 /* verses count muted */
 .surah-verses {
+    display: flex;
     font-size: 12px;
     color: var(--muted-text-2);
     line-height: 1;
@@ -573,7 +620,7 @@ body.theme-sunset .bookmark-icon img {
   max-height: calc(100vh - 56px);
   border: 1px solid var(--border);
   box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
-  transform: translate(0, -100%);
+    transform: translate(120%, 0);
   opacity: 0;
   transition: transform 320ms cubic-bezier(.2,.9,.2,1), opacity 220ms ease, background var(--color-transition);
   will-change: transform, opacity;
@@ -697,3 +744,52 @@ a:focus, button:focus, input:focus, select:focus, [tabindex]:focus {
   .bookmark-icon img { width:20px; height:20px; }
   #bmPanel { width: calc(100% - 28px); left: 14px; right: 14px; top: 12px; }
 }
+
+#audioOverlay { position: fixed; inset: 0; pointer-events: none; z-index: 12000; }
+#audioPanel {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: min(320px, 92%);
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+  transform: translateY(100%);
+  opacity: 0;
+  transition: opacity 240ms ease, transform 240ms cubic-bezier(.2,.9,.2,1);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: left;
+  text-align: left;
+}
+#audioOverlay.open #audioPanel { opacity: 1; transform: translateY(0); }
+
+.sura-heading {
+  display: flex;
+  font-size: 16px;
+  margin: 0;
+  font-weight: 600;
+  align-items: center;
+  color: var(--text);
+}
+.audio-num {
+  font-family: 'SuraNames', system-ui, Inter;
+  font-size: 16px;
+  font-weight: 500;
+  padding-left: 3px;
+  margin: 0;
+}
+.audio-sub { display: flex; margin-top: -6px; margin-bottom: 0; font-size: 13px; color: var(--muted-text-2); align-items: center;}
+.audio-controls { display:flex; gap:10px; align-items:center; justify-content:center; width:100%; }
+.audio-controls .icon-btn { width:80px; height:20px; border-radius:8px; background:transparent; border:0; cursor:pointer; transition: opacity 200ms ease; }
+.audio-controls .icon-btn svg { width: 40%; height: 100%; fill: var(--accent); }
+#audioPlayPause { height: 44px; }
+.reciter-img { position: absolute; right: 0; top: 0; padding-right: 10px; width: 40px; filter: brightness(20%);}
+.reciter { position: absolute; width: 40px; height: 40px; right: 0; padding-right: 10px; justify-content: center; display: flex; }
+.audio-verse-label { position: relative; font-size: 18px; color: var(--muted-text); margin: auto; z-index: 1; }
+.audio-controls .icon-btn:hover { opacity: .7; }
