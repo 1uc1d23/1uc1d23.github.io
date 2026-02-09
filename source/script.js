@@ -45,6 +45,15 @@
   const bmPromptCancel = document.getElementById('bmPromptCancel');
   const bmPromptSave = document.getElementById('bmPromptSave');
 
+  const AUDIO_BASE = 'https://dn710109.ca.archive.org/0/items/aziz.quranhousebd/';
+  const overlay = document.getElementById('audioOverlay');
+  const panel = document.getElementById('audioPanel');
+  const heading = document.getElementById('audioHeading');
+  const verseLabel = document.getElementById('audioVerseLabel');
+  const btnPrev = document.getElementById('audioPrev');
+  const btnPlayPause = document.getElementById('audioPlayPause');
+  const btnNext = document.getElementById('audioNext');
+
   // ---------- State ----------
   let current = 1;
   const imageCache = new Map();
@@ -202,8 +211,8 @@
   function saveThemeToStorage(theme) { try { localStorage.setItem(THEME_KEY, theme); } catch (e) { } }
   function readThemeFromStorage() { try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; } }
 
-  function saveQualityToStorage(q){ try { localStorage.setItem(QUALITY_KEY, q); } catch(e) {} }
-  function readQualityFromStorage(){ try { return localStorage.getItem(QUALITY_KEY); } catch(e){ return null; } }
+  function saveQualityToStorage(q) { try { localStorage.setItem(QUALITY_KEY, q); } catch (e) { } }
+  function readQualityFromStorage() { try { return localStorage.getItem(QUALITY_KEY); } catch (e) { return null; } }
   function savePageToStorage() {
     try {
       if (typeof current === 'number' && current >= 1 && current <= TOTAL_PAGES) localStorage.setItem(PAGE_KEY, String(current));
@@ -230,57 +239,57 @@
 
   let quality = readQualityFromStorage() || 'default'; // 'default' or '2k'
 
-function getPageUrl(page){
-  const prefix = (quality === '2k') ? 'hd_pages' : 'pages';
-  return `${prefix}/${page}.png`;
-}
+  function getPageUrl(page) {
+    const prefix = (quality === '2k') ? 'hd_pages' : 'pages';
+    return `${prefix}/${page}.png`;
+  }
 
-// --- add helper: clear in-memory cache + revoke blob URLs
-function clearImageCache() {
-  try {
-    for (const [pg, entry] of imageCache) {
-      if (entry && entry.blobUrl) {
-        try { URL.revokeObjectURL(entry.blobUrl); } catch (e) {}
+  // --- add helper: clear in-memory cache + revoke blob URLs
+  function clearImageCache() {
+    try {
+      for (const [pg, entry] of imageCache) {
+        if (entry && entry.blobUrl) {
+          try { URL.revokeObjectURL(entry.blobUrl); } catch (e) { }
+        }
       }
-    }
-  } catch (e) {}
-  imageCache.clear();
-  inFlight.clear();
-  listeners.clear(); // remove pending listeners so loadImage will re-register
-}
+    } catch (e) { }
+    imageCache.clear();
+    inFlight.clear();
+    listeners.clear(); // remove pending listeners so loadImage will re-register
+  }
 
-// --- replace your applyQuality with this version
-function applyQuality(q){
-  quality = (q === '2k') ? '2k' : 'default';
-  saveQualityToStorage(quality);
+  // --- replace your applyQuality with this version
+  function applyQuality(q) {
+    quality = (q === '2k') ? '2k' : 'default';
+    saveQualityToStorage(quality);
 
-  // update buttons immediately
-  if (typeof setQualityButtonStates === 'function') setQualityButtonStates();
+    // update buttons immediately
+    if (typeof setQualityButtonStates === 'function') setQualityButtonStates();
 
-  // clear in-memory cache so setPageImg fetches from the new folder
-  clearImageCache();
+    // clear in-memory cache so setPageImg fetches from the new folder
+    clearImageCache();
 
-  // re-preload and then reload current page from new source
-  preloadRange(current, PRELOAD_BEFORE, PRELOAD_AFTER);
-  // small delay so sample is visible before the real image replaces it
-  setTimeout(() => setPageImg(current), 60);
-}
+    // re-preload and then reload current page from new source
+    preloadRange(current, PRELOAD_BEFORE, PRELOAD_AFTER);
+    // small delay so sample is visible before the real image replaces it
+    setTimeout(() => setPageImg(current), 60);
+  }
 
 
-(function initQuality(){
-  // set initial UI state after DOM buttons exist
-  const stored = readQualityFromStorage();
-  if (stored) quality = stored;
-  // callers below will wire UI buttons
-})();
+  (function initQuality() {
+    // set initial UI state after DOM buttons exist
+    const stored = readQualityFromStorage();
+    if (stored) quality = stored;
+    // callers below will wire UI buttons
+  })();
 
-function setQualityButtonStates() {
+  function setQualityButtonStates() {
     if (btnQualityDefault) btnQualityDefault.classList.toggle('active', quality === 'default');
     if (btnQuality2k) btnQuality2k.classList.toggle('active', quality === '2k');
   }
 
-  if (btnQualityDefault) btnQualityDefault.addEventListener('click', ()=> { applyQuality('default'); setQualityButtonStates(); });
-  if (btnQuality2k) btnQuality2k.addEventListener('click', ()=> { applyQuality('2k'); setQualityButtonStates(); });
+  if (btnQualityDefault) btnQualityDefault.addEventListener('click', () => { applyQuality('default'); setQualityButtonStates(); });
+  if (btnQuality2k) btnQuality2k.addEventListener('click', () => { applyQuality('2k'); setQualityButtonStates(); });
 
   // initialize UI
   setQualityButtonStates();
@@ -460,12 +469,19 @@ function setQualityButtonStates() {
     try { viewer.focus(); } catch (e) { }
   }
 
-  function openNav() {
-    closeAllExcept('nav');
-    if (!navOverlay) return;
-    navOverlay.classList.add('open'); navOverlay.setAttribute('aria-hidden', 'false');
-    requestAnimationFrame(() => { try { navSearch.focus(); navSearch.select(); } catch (e) { } applyFilter(navSearch.value); });
-  }
+  function openNav(){
+  closeAllExcept('nav');
+  if(!navOverlay) return;
+  navOverlay.classList.add('open'); navOverlay.setAttribute('aria-hidden','false');
+  requestAnimationFrame(()=> {
+    try{ navSearch.focus(); navSearch.select(); }catch(e) {}
+    // ensure we render the currently active tab (surah/juz) when opening
+    setNavTab(navActiveTab || 'surah');
+    // if there's a search term, apply it (applyFilter uses navActiveTab)
+    if (navSearch && navSearch.value) applyFilter(navSearch.value);
+  });
+}
+
   function closeNav() {
     if (!navOverlay) return;
     navOverlay.classList.remove('open'); navOverlay.setAttribute('aria-hidden', 'true');
@@ -586,6 +602,143 @@ function setQualityButtonStates() {
 
   function pad3(n) { return String(n).padStart(3, '0'); }
 
+  // --- Juz start pages (hardcoded)
+const JUZ_START_PAGES = {
+  1:1,2:22,3:42,4:62,5:82,6:102,7:121,8:142,9:162,10:182,
+  11:201,12:222,13:242,14:262,15:282,16:302,17:322,
+  18:342,19:362,20:382,21:402,22:422,23:442,24:462,
+  25:482,26:502,27:522,28:542,29:562,30:582
+};
+
+// nav tabs state
+let navActiveTab = 'surah'; // 'surah' or 'juz'
+const tabSurah = document.getElementById('tabSurah');
+const tabJuz = document.getElementById('tabJuz');
+
+// create a juz button node (reuses surah-item style so it looks identical)
+function createJuzNode(juzNum) {
+  const btn = document.createElement('button');
+  btn.className = 'surah-item'; // reuse style
+  btn.type = 'button';
+  btn.setAttribute('data-juz', String(juzNum));
+
+  const left = document.createElement('div'); left.className = 'surah-left';
+  const titleRow = document.createElement('div'); titleRow.className = 'surah-title-row';
+
+  const name = document.createElement('div'); name.className = 'surah-name';
+  name.textContent = `Juz ${String(juzNum).padStart(2,'')}'`;
+
+  titleRow.appendChild(name);
+
+  // determine start page and end page for this juz
+  const startPage = Number(JUZ_START_PAGES[juzNum]);
+  const endPage = (juzNum < 30) ? Number(JUZ_START_PAGES[juzNum + 1]) - 1 : TOTAL_PAGES;
+
+  // helper: find surah object by page using surahs table
+  function surahForPage(page) {
+    // find last surah whose startPage <= page
+    let idx = surahs.findIndex((s, i) => {
+      const next = surahs[i+1];
+      if (!next) return page >= s.startPage;
+      return page >= s.startPage && page < next.startPage;
+    });
+    if (idx === -1) idx = surahs.length - 1;
+    return surahs[idx];
+  }
+
+  const startSurah = surahForPage(startPage) || { number: '?', name: 'Unknown' };
+  const endSurah = surahForPage(endPage) || startSurah;
+
+  const subtitle = `${startSurah.name} <div class="small-num">${pad3(Number(startSurah.number))}</div> - ${endSurah.name} <div class="small-num">${pad3(Number(endSurah.number))}</div>`;
+
+  const verses = document.createElement('div'); verses.className = 'surah-verses';
+  verses.innerHTML = subtitle;
+
+  left.appendChild(titleRow);
+  left.appendChild(verses);
+
+  const right = document.createElement('div'); right.className = 'surah-page';
+  right.textContent = startPage || '';
+
+  btn.appendChild(left);
+  btn.appendChild(right);
+
+  btn.addEventListener('click', () => {
+    const p = Number(startPage || 1);
+    if (typeof window.showPage === 'function') window.showPage(p);
+    closeNav();
+  });
+
+  return btn;
+}
+
+function renderJuzList(norm = '') {
+  if (!navList) return;
+  const q = String(norm).trim().toLowerCase();
+
+  const juzArr = Object.keys(JUZ_START_PAGES)
+    .map(Number)
+    .filter(j => {
+      if (!q) return true;
+      return String(j) === q || (`juz ${j}`).includes(q);
+    })
+    .sort((a,b)=>a-b);
+
+  navList.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const j of juzArr) frag.appendChild(createJuzNode(j));
+  navList.appendChild(frag);
+}
+
+
+function applyFilter(q) {
+  const norm = String(q || '').trim().toLowerCase();
+
+  if (navActiveTab === 'surah') {
+    if (!norm) {
+      renderList(surahs);
+      return;
+    }
+
+    const filtered = surahs.filter(s => {
+      if (String(s.number) === norm) return true;
+      if (pad3(s.number) === norm) return true;
+      if (s.name.toLowerCase().includes(norm)) return true;
+      return false;
+    });
+
+    renderList(filtered);
+  }
+
+  if (navActiveTab === 'juz') {
+    renderJuzList(norm); // juz stays juz
+  }
+}
+
+
+// tab switching helper
+function setNavTab(tab) {
+  navActiveTab = (tab === 'juz') ? 'juz' : 'surah';
+  if (tabSurah) tabSurah.setAttribute('aria-pressed', navActiveTab === 'surah');
+  if (tabJuz) tabJuz.setAttribute('aria-pressed', navActiveTab === 'juz');
+  // change placeholder to match tab
+  if (navSearch) {
+    navSearch.placeholder = (navActiveTab === 'surah') ? "Try typing Ya-Sin or 36 ..." : "Try typing Juz' 30 or 30 ...";
+    navSearch.value = '';
+  }
+  // render appropriate list
+  if (navActiveTab === 'surah') renderList(surahs);
+  else renderJuzList();
+}
+
+// wire tab buttons (call once after DOM ready)
+if (tabSurah) tabSurah.addEventListener('click', () => { setNavTab('surah'); });
+if (tabJuz) tabJuz.addEventListener('click', () => { setNavTab('juz'); });
+
+// ensure navSearch input still wires to new applyFilter
+if (navSearch) navSearch.addEventListener('input', (e) => { applyFilter(e.target.value); });
+
+
   function getSurahLabelForPage(page) {
     // prefer pagesMeta when available
     if (pagesMeta && Array.isArray(pagesMeta)) {
@@ -698,7 +851,7 @@ function setQualityButtonStates() {
       bmTrashBtn.innerHTML = bmDeleteMode
         ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-lg" viewBox="0 0 16 16"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/></svg>`
         : `<i data-feather="trash-2"></i>`;
-    feather.replace();
+      feather.replace();
     }
     renderBmList();
   }
@@ -781,11 +934,17 @@ function setQualityButtonStates() {
     }
     doChunk();
   }
+  
+// initialize nav tab on load (call this where you init nav rendering)
+setNavTab('surah');
 
   function applyFilter(q) {
+  const norm = String(q || '').trim().toLowerCase();
+
+  if (navActiveTab === 'surah') {
     if (typeof surahs === 'undefined') return;
-    const norm = String(q || '').trim().toLowerCase();
     if (!norm) { renderList(surahs); return; }
+
     const filtered = surahs.filter(s => {
       if (String(s.number) === norm) return true;
       if (pad3(s.number) === norm) return true;
@@ -793,7 +952,13 @@ function setQualityButtonStates() {
       return false;
     });
     renderList(filtered);
+  } 
+  else if (navActiveTab === 'juz') {
+    if (!norm) { renderJuzList(); return; }
+    renderJuzList(norm); // your juz filter logic
   }
+}
+
 
   if (navSearch) navSearch.addEventListener('input', (e) => { applyFilter(e.target.value); });
 
@@ -874,5 +1039,608 @@ function setQualityButtonStates() {
   window.closeBookmarks = closeBm;
   window.addBookmarkForCurrent = addBookmarkForCurrent;
   window.removeBookmarkById = removeBookmarkById;
+
+  let audio = new Audio();
+// AUDIO PRELOAD CACHE
+const audioCache = new Map(); // key -> { audio: Audio, page: Number }
+
+// helper: dispatch custom audio events (used by wave UI)
+function dispatchAudioEvent(name, detail = {}) {
+  try {
+    document.dispatchEvent(new CustomEvent(name, { detail }));
+  } catch (e) { /* ignore */ }
+}
+
+// preload all verses on a page
+function preloadAudioForPage(page) {
+  if (!pagesMeta) return;
+  if (page < 1 || page > TOTAL_PAGES) return;
+  const verses = getVersesForPageNum(page); // uses existing helper
+  for (const v of verses) {
+    const key = `${v.surah}_${v.verse}`;
+    if (audioCache.has(key)) continue;
+    try {
+      const a = new Audio(audioUrlFor(v.surah, v.verse));
+      // improve CORS for cached sources (safe if server supports it)
+      try { a.crossOrigin = 'anonymous'; } catch (e) { }
+      a.preload = 'auto';
+      // start loading
+      a.load();
+      // if load errors, remove from cache so later attempts can retry
+      a.addEventListener('error', () => { if (audioCache.get(key)?.audio === a) audioCache.delete(key); }, { passive: true });
+      // store meta so we can trim by page later
+      audioCache.set(key, { audio: a, page });
+    } catch (e) {
+      // ignore preload failures
+    }
+  }
+}
+
+// preload current page + next page (call this whenever page changes / when starting)
+function preloadAudioForNearbyPages(page) {
+  preloadAudioForPage(page);
+  if (page + 1 <= TOTAL_PAGES) preloadAudioForPage(page + 1);
+}
+
+// trim audio cache to keep only pages in the keepPages set (helps memory)
+function trimAudioCache(keepPages = new Set()) {
+  for (const [key, entry] of audioCache) {
+    if (!keepPages.has(entry.page)) {
+      try { entry.audio.pause(); } catch (e) { }
+      audioCache.delete(key);
+    }
+  }
+}
+
+audio.preload = 'auto';
+let playingIndex = 0;
+let currentSequence = []; // array of {surah, verse, page}
+let isPlaying = false;
+updatePlayPauseIcon();
+// track last played surah (null until we actually play something)
+let lastPlayedSurah = null;
+
+// ensure pagesMeta loaded
+async function ensurePagesMeta() {
+  if (typeof pagesMeta === 'undefined' || !pagesMetaLoaded) {
+    try { await loadPagesMeta(); } catch (e) { /* ignore */ }
+  }
+}
+
+function surahVerseCount(n) {
+  const s = surahs.find(x => Number(x.number) === Number(n));
+  return s ? Number(s.verses) : 0;
+}
+
+// build array of {surah, verse} for a page
+function getVersesForPageNum(page) {
+  if (!pagesMeta) return [];
+  const p = pagesMeta.find(x => Number(x.page) === Number(page));
+  if (!p) return [];
+  const s1 = Number(p.start.surah_number), v1 = Number(p.start.verse);
+  const s2 = Number(p.end.surah_number), v2 = Number(p.end.verse);
+  const out = [];
+  for (let s = s1; s <= s2; s++) {
+    const startV = (s === s1) ? v1 : 1;
+    const endV = (s === s2) ? v2 : surahVerseCount(s);
+    for (let v = startV; v <= endV; v++) out.push({ surah: s, verse: v });
+  }
+  return out;
+}
+
+// find page number that contains given (surah,verse)
+function findPageForVerse(surahNum, verseNum) {
+  if (!pagesMeta) return null;
+  const s = pagesMeta.find(p => {
+    const aS = Number(p.start.surah_number), aV = Number(p.start.verse);
+    const bS = Number(p.end.surah_number), bV = Number(p.end.verse);
+    const beforeStart = (surahNum < aS) || (surahNum === aS && verseNum < aV);
+    const afterEnd = (surahNum > bS) || (surahNum === bS && verseNum > bV);
+    return !beforeStart && !afterEnd;
+  });
+  return s ? Number(s.page) : null;
+}
+
+function audioUrlFor(surah, verse) {
+  return AUDIO_BASE + pad3(Number(surah)) + pad3(Number(verse)) + '.mp3';
+}
+
+function updatePanelUI(surah, verse) {
+  // heading: "002 Al-Baqarah" if pagesMeta available use transliteration/en: try pagesMeta mapping
+  let surahName = '';
+  const p = pagesMeta && pagesMeta.length ? pagesMeta.find(x => {
+    // match a surah entry with same surah number in start or end
+    return (Number(x.start.surah_number) === Number(surah)) || (Number(x.end.surah_number) === Number(surah));
+  }) : null;
+  if (p && p.start && Number(p.start.surah_number) === Number(surah)) {
+    surahName = (p.start.name && (p.start.name.transliteration || p.start.name)) || `Surah ${surah}`;
+  } else {
+    // fallback to surahs table
+    const sObj = surahs.find(s => Number(s.number) === Number(surah));
+    surahName = sObj ? sObj.name : `Surah ${surah}`;
+  }
+  heading.innerHTML = `${surahName} <div class="audio-num">${pad3(Number(surah))}</div>`;
+  verseLabel.textContent = `${Number(verse)}`;
+}
+
+function buildSequenceFromPage(page) {
+  // returns array of {surah,verse,page}
+  const arr = getVersesForPageNum(page).map(v => ({ surah: v.surah, verse: v.verse, page }));
+  return arr;
+}
+
+// ensure bismillah (001001.mp3) is preloaded once
+function preloadBismillahOnce() {
+  const key = `1_1`; // surah1 verse1
+  if (audioCache.has(key)) return;
+  try {
+    const a = new Audio(audioUrlFor(1, 1));
+    try { a.crossOrigin = 'anonymous'; } catch (e) { }
+    a.preload = 'auto';
+    a.load();
+    a.addEventListener('error', () => { if (audioCache.get(key)?.audio === a) audioCache.delete(key); }, { passive: true });
+    audioCache.set(key, { audio: a, page: null });
+  } catch (e) { }
+}
+// call it now so Bismillah is primed
+preloadBismillahOnce();
+
+// start playing sequence from page's first verse
+async function startPlaybackFromCurrentPage() {
+  await ensurePagesMeta();
+  // preload current + next page audio immediately
+  preloadAudioForNearbyPages(current);
+
+  // optionally trim: keep current and next page audio only
+  const keep = new Set([current, current + 1]);
+  trimAudioCache(keep);
+
+  // build initial sequence from current page
+  currentSequence = buildSequenceFromPage(current);
+  playingIndex = 0;
+  if (currentSequence.length === 0) return;
+  playIndex(playingIndex);
+}
+
+function playIndex(idx) {
+  if (!currentSequence || idx < 0) return;
+  // if idx beyond currentSequence, attempt to fetch next page's sequence
+  if (idx >= currentSequence.length) {
+    // move to next page's sequence
+    const last = currentSequence[currentSequence.length - 1];
+    const nextPage = Number(last.page) + 1;
+    if (nextPage <= TOTAL_PAGES) {
+      currentSequence = buildSequenceFromPage(nextPage);
+      playingIndex = 0;
+    } else {
+      stopAudio();
+      return;
+    }
+  } else {
+    playingIndex = idx;
+  }
+
+  const item = currentSequence[playingIndex];
+  if (!item) return stopAudio();
+  const url = audioUrlFor(item.surah, item.verse);
+
+  // if verse belongs to a different page than currently shown, change page
+  const versePage = findPageForVerse(item.surah, item.verse);
+  if (versePage && versePage !== current) {
+    // wrap in try so if showPage throws we don't break playback
+    try { showPage(versePage); } catch (e) { }
+    // ensure current reflects visible page (some showPage implementations set it, but ensure)
+    try { current = versePage; } catch (e) { }
+  }
+
+  // Determine if we must play Bismillah first:
+  // Play Bismillah when entering a new surah (surah changed from lastPlayedSurah OR starting fresh),
+  // the verse is 1, and the new surah is not 9 (At-Tawbah).
+  const enteringNewSurah = (lastPlayedSurah === null) || (Number(item.surah) !== Number(lastPlayedSurah));
+  const shouldPlayBismillah = enteringNewSurah && Number(item.verse) === 1 && Number(item.surah) !== 9;
+
+  if (shouldPlayBismillah) {
+    // show "Bismillah" label temporarily
+    verseLabel.textContent = `0`;
+
+    // Play bismillah first (use cached if available)
+    const bKey = `1_1`;
+    const bUrl = audioCache.has(bKey) ? audioCache.get(bKey).audio.src : audioUrlFor(1, 1);
+
+    // set onended to then play the actual verse
+    audio.onended = () => {
+      // now play the actual verse
+      lastPlayedSurah = item.surah; // mark surah as played before actual verse
+      // restore default onended to advance to next verse
+      audio.onended = () => { playNext(); dispatchAudioEvent('alq-audio-pause'); };
+      audio.onerror = () => { playNext(); dispatchAudioEvent('alq-audio-pause'); };
+
+      // try to use cached audio if available
+      const cacheKey = `${item.surah}_${item.verse}`;
+      audio.src = audioCache.has(cacheKey) ? audioCache.get(cacheKey).audio.src : url;
+      // sync page with verse BEFORE playing
+      const versePage2 = findPageForVerse(item.surah, item.verse);
+      if (versePage2 && versePage2 !== current) {
+        try { showPage(versePage2); } catch (e) { }
+        current = versePage2; // 👈 important
+      }
+      // update UI to show actual verse number
+      updatePanelUI(item.surah, item.verse);
+
+      audio.play().then(() => {
+        isPlaying = true;
+        updatePlayPauseIcon();
+        dispatchAudioEvent('alq-audio-play', { surah: item.surah, verse: item.verse });
+      }).catch(() => {
+        isPlaying = false;
+        updatePlayPauseIcon();
+        dispatchAudioEvent('alq-audio-pause');
+      });
+    };
+
+    // play bismillah
+    audio.src = bUrl;
+    audio.play().then(() => {
+      isPlaying = true;
+      updatePlayPauseIcon();
+      dispatchAudioEvent('alq-audio-play', { surah: 1, verse: 1 });
+    }).catch(() => {
+      isPlaying = false;
+      updatePlayPauseIcon();
+      dispatchAudioEvent('alq-audio-pause');
+      // if bismillah autoplay fails, skip to actual verse
+      setTimeout(() => {
+        audio.onended && audio.onended();
+      }, 150);
+    });
+    return;
+  }
+
+  // Normal path: no pre-bismillah required
+  updatePanelUI(item.surah, item.verse);
+
+  try {
+    const cacheKey = `${item.surah}_${item.verse}`;
+    if (audioCache.has(cacheKey)) {
+      // The browser has already fetched / buffered this audio -> set same src (will be fast)
+      audio.src = audioCache.get(cacheKey).audio.src;
+    } else {
+      audio.src = url;
+    }
+
+    // set default onended handler and start
+    audio.onended = () => { playNext(); dispatchAudioEvent('alq-audio-pause'); };
+    audio.onerror = () => { playNext(); dispatchAudioEvent('alq-audio-pause'); };
+
+    audio.play().then(() => {
+      isPlaying = true;
+      lastPlayedSurah = item.surah; // mark this surah as the last played
+      updatePlayPauseIcon();
+      dispatchAudioEvent('alq-audio-play', { surah: item.surah, verse: item.verse });
+    }).catch(() => {
+      // autoplay failed; still set UI
+      isPlaying = false;
+      updatePlayPauseIcon();
+      dispatchAudioEvent('alq-audio-pause');
+    });
+  } catch (e) {
+    // on error skip to next
+    setTimeout(() => { playNext(); }, 200);
+  }
+}
+
+function playNext() {
+  // advance within currentSequence; if at end, attempt to load next page's sequence
+  if (!currentSequence) return;
+  const nextIdx = playingIndex + 1;
+  if (nextIdx < currentSequence.length) {
+    playIndex(nextIdx);
+    updatePlayPauseIcon();
+  } else {
+    // try to build sequence from next page
+    const lastPage = currentSequence.length ? currentSequence[currentSequence.length - 1].page : current;
+    const nextPage = Number(lastPage) + 1;
+    if (nextPage <= TOTAL_PAGES) {
+      currentSequence = buildSequenceFromPage(nextPage);
+      // prefetch the page after nextPage too (so playback stays gapless)
+      preloadAudioForNearbyPages(nextPage);
+      // keep only nextPage and its following page in cache
+      trimAudioCache(new Set([nextPage, nextPage + 1]));
+      playingIndex = 0;
+      updatePlayPauseIcon();
+      playIndex(playingIndex);
+    } else {
+      stopAudio();
+    }
+  }
+}
+
+function playPrev() {
+  if (!currentSequence) return;
+  if (playingIndex > 0) {
+    playIndex(playingIndex - 1);
+    updatePlayPauseIcon();
+  } else {
+    // go to previous page's last verse if exists
+    const firstPage = currentSequence.length ? currentSequence[0].page : current;
+    const prevPage = Number(firstPage) - 1;
+    if (prevPage >= 1) {
+      currentSequence = buildSequenceFromPage(prevPage);
+      playingIndex = currentSequence.length - 1;
+      updatePlayPauseIcon();
+      // ensure visible page sync
+      try { showPage(prevPage); } catch (e) { }
+      current = prevPage;
+      playIndex(playingIndex);
+    }
+  }
+}
+
+function togglePlayPause() {
+  if (!audio.src) {
+    // start fresh from current page
+    startPlaybackFromCurrentPage();
+    return;
+  }
+  if (isPlaying) {
+    audio.pause();
+    isPlaying = false;
+    dispatchAudioEvent('alq-audio-pause');
+  } else {
+    audio.play().catch(() => { });
+    isPlaying = true;
+    dispatchAudioEvent('alq-audio-play');
+  }
+  updatePlayPauseIcon();
+}
+
+function stopAudio() {
+  try { audio.pause(); audio.currentTime = 0; } catch (e) { }
+  isPlaying = false;
+  dispatchAudioEvent('alq-audio-pause');
+  updatePlayPauseIcon();
+}
+
+function updatePlayPauseIcon() {
+  if (!btnPlayPause) return;
+  if (isPlaying) {
+    btnPlayPause.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pause-fill" viewBox="0 0 16 16">
+    <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>
+  </svg>`;
+  } else {
+    btnPlayPause.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-play-fill" viewBox="0 0 16 16">
+    <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
+  </svg>`;
+  }
+}
+
+
+// Audio-wave controller (paste after audio player code)
+(function () {
+  const wave = document.querySelector('.reciter-wave');
+  if (!wave) return;
+
+  const lines = Array.from(wave.querySelectorAll('.wave-line'));
+  let raf = null;
+  let running = false;
+
+  // randomize scale values (range), called each frame while playing
+  function tick() {
+    for (let i = 0; i < lines.length; i++) {
+      // use slightly different randomness per line for organic motion
+      const r = 0.4 + Math.abs(Math.sin((Date.now() / 300) + i * 1.13)) * (0.6 + Math.random() * 0.6);
+      // apply scaleY and small height tweak for crispness
+      lines[i].style.transform = `scaleY(${r.toFixed(3)})`;
+      // optionally adjust opacity subtly
+      lines[i].style.opacity = (0.6 + (r - 0.4) * 0.6).toFixed(2);
+    }
+    raf = requestAnimationFrame(tick);
+  }
+
+  function startWave() {
+    if (!wave) return;
+    wave.classList.add('playing');
+    if (running) return;
+    running = true;
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(tick);
+  }
+  function stopWave() {
+    if (!wave) return;
+    wave.classList.remove('playing');
+    running = false;
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    // gently return to sleepy state
+    lines.forEach(l => {
+      l.style.transform = 'scaleY(0.45)';
+      l.style.opacity = '0.45';
+    });
+  }
+
+  // Listen for custom global events dispatched by the audio player
+  document.addEventListener('alq-audio-play', startWave);
+  document.addEventListener('alq-audio-pause', stopWave);
+
+  // Also respond to page visibility / unload etc
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') stopWave();
+  });
+
+  // if you want to reflect initial state at load:
+  // if (document.querySelector('#audioOverlay')?.classList.contains('open')) startWave();
+
+})();
+
+// audio events
+audio.onended = () => { playNext(); dispatchAudioEvent('alq-audio-pause'); };
+audio.onerror = () => { playNext(); dispatchAudioEvent('alq-audio-pause'); };
+audio.onplay = () => { isPlaying = true; updatePlayPauseIcon(); dispatchAudioEvent('alq-audio-play'); };
+audio.onpause = () => { isPlaying = false; updatePlayPauseIcon(); dispatchAudioEvent('alq-audio-pause'); };
+
+// UI control bindings
+btnPrev.addEventListener('click', (e) => { e.stopPropagation(); playPrev(); });
+btnNext.addEventListener('click', (e) => { e.stopPropagation(); playNext(); });
+btnPlayPause.addEventListener('click', (e) => { e.stopPropagation(); togglePlayPause(); });
+
+// toggle panel with 'P'
+window.addEventListener('keydown', async (ev) => {
+  if (ev.key === 'p' || ev.key === 'P') {
+    ev.preventDefault();
+    if (!overlay.classList.contains('open')) {
+      // open and start playing first verse of current page
+      overlay.classList.add('open');
+      overlay.setAttribute('aria-hidden', 'false');
+      await ensurePagesMeta();
+      // build and play
+      currentSequence = buildSequenceFromPage(current);
+      if (!currentSequence || currentSequence.length === 0) {
+        // fallback: find first verse on page via pagesMeta
+        currentSequence = buildSequenceFromPage(current);
+      }
+      playingIndex = 0;
+      playIndex(playingIndex);
+      updatePlayPauseIcon();
+    } else {
+      // close: stop audio
+      overlay.classList.remove('open');
+      overlay.setAttribute('aria-hidden', 'true');
+      stopAudio();
+    }
+  }
+}, { passive: false });
+
+// expose some helpers for debugging if needed
+window.audioPlayer = {
+  open: () => { overlay.classList.add('open'); overlay.setAttribute('aria-hidden', 'false'); },
+  close: () => { overlay.classList.remove('open'); overlay.setAttribute('aria-hidden', 'true'); stopAudio(); },
+  playNext,
+  playPrev,
+  playIndex
+};
+
+// ensure feather icons render
+if (typeof feather !== 'undefined') feather.replace();
+
+// On page change, if audio panel open and playing, update sequence if the page changed outside playback
+const origShowPage = window.showPage;
+window.showPage = function (p, dir) {
+  origShowPage(p, dir);
+  // refresh sequence if panel open
+  if (overlay.classList.contains('open')) {
+    currentSequence = buildSequenceFromPage(p);
+    playingIndex = 0;
+    // continue playing automatically
+    playIndex(playingIndex);
+    updatePlayPauseIcon();
+  }
+};
+
+// simple tooltip for all buttons with a title attribute
+(function () {
+  let tooltipTimer = null;
+
+  const tooltip = document.createElement('div');
+  tooltip.className = 'custom-tooltip';
+  document.body.appendChild(tooltip);
+
+  // store original title so we can restore it
+  const originalTitle = new WeakMap();
+
+  function showFor(el) {
+    const txt = el.getAttribute('data-tooltip-text') || el.getAttribute('title');
+    if (!txt) return;
+
+    // delay tooltip
+    clearTimeout(tooltipTimer);
+    tooltipTimer = setTimeout(() => {
+      // temporarily remove native title
+      if (el.getAttribute('title')) {
+        originalTitle.set(el, el.getAttribute('title'));
+        el.removeAttribute('title');
+      }
+
+      tooltip.textContent = txt;
+      tooltip.classList.add('show');
+
+      // position: centered above element if enough space, otherwise below
+      const r = el.getBoundingClientRect();
+      const ttR = tooltip.getBoundingClientRect();
+      const margin = 8;
+
+      let left = r.left + (r.width / 2) - (ttR.width / 2);
+      left = Math.max(8, Math.min(left, window.innerWidth - ttR.width - 8));
+
+      let top = r.top - ttR.height - margin;
+      if (top < 8) {
+        top = r.bottom + margin;
+      }
+
+      tooltip.style.left = `${Math.round(left)}px`;
+      tooltip.style.top = `${Math.round(top)}px`;
+    }, 800); // ⏱️ 800ms delay
+  }
+
+  function hideFor(el) {
+    clearTimeout(tooltipTimer);
+
+    tooltip.classList.remove('show');
+    // restore native title after a short delay so quick hover won't re-trigger native tooltip
+    setTimeout(() => {
+      if (originalTitle.has(el)) {
+        const v = originalTitle.get(el);
+        if (v) el.setAttribute('title', v);
+        originalTitle.delete(el);
+      }
+    }, 350);
+  }
+
+  // wire buttons
+  function wireButtons(root = document) {
+    const buttons = Array.from(root.querySelectorAll('button[title]'));
+    buttons.forEach(btn => {
+      // don't double-wire
+      if (btn.__tooltip_wired) return;
+      btn.__tooltip_wired = true;
+
+      // support custom override text via data-tooltip-text if you want different wording later
+      btn.addEventListener('mouseenter', () => showFor(btn), { passive: true });
+      btn.addEventListener('mouseleave', () => hideFor(btn), { passive: true });
+      btn.addEventListener('focus', () => showFor(btn), { passive: true });
+      btn.addEventListener('blur', () => hideFor(btn), { passive: true });
+
+      // mobile: show tooltip on long press (pressstart), hide on touchend
+      let touchTimer = null;
+      btn.addEventListener('touchstart', (e) => {
+        // avoid interfering with clicks — show after 350ms hold
+        touchTimer = setTimeout(() => showFor(btn), 350);
+      }, { passive: true });
+      btn.addEventListener('touchend', () => {
+        clearTimeout(touchTimer);
+        hideFor(btn);
+      }, { passive: true });
+      btn.addEventListener('touchcancel', () => { clearTimeout(touchTimer); hideFor(btn); }, { passive: true });
+    });
+  }
+
+  // initial wiring
+  wireButtons();
+
+  // re-wire if DOM changes (for dynamic buttons)
+  const mo = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.addedNodes && m.addedNodes.length) wireButtons();
+    }
+  });
+  mo.observe(document.body, { childList: true, subtree: true });
+
+  // expose helper if you want to set custom tooltip for a button:
+  window.setButtonTooltip = (btn, text) => {
+    if (!btn) return;
+    btn.setAttribute('data-tooltip-text', text);
+    // re-wire if needed
+    wireButtons(document);
+  };
+})();
+
 
 })();
