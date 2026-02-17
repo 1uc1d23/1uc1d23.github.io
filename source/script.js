@@ -611,9 +611,10 @@ const JUZ_START_PAGES = {
 };
 
 // nav tabs state
-let navActiveTab = 'surah'; // 'surah' or 'juz'
+let navActiveTab = 'surah'; // 'surah', 'juz', or 'page'
 const tabSurah = document.getElementById('tabSurah');
 const tabJuz = document.getElementById('tabJuz');
+const tabPage = document.getElementById('tabPage');
 
 // create a juz button node (reuses surah-item style so it looks identical)
 function createJuzNode(juzNum) {
@@ -626,7 +627,7 @@ function createJuzNode(juzNum) {
   const titleRow = document.createElement('div'); titleRow.className = 'surah-title-row';
 
   const name = document.createElement('div'); name.className = 'surah-name';
-  name.textContent = `Juz ${String(juzNum).padStart(2,'')}'`;
+  name.textContent = `Juz' ${String(juzNum).padStart(2,'')}`;
 
   titleRow.appendChild(name);
 
@@ -649,7 +650,9 @@ function createJuzNode(juzNum) {
   const startSurah = surahForPage(startPage) || { number: '?', name: 'Unknown' };
   const endSurah = surahForPage(endPage) || startSurah;
 
-  const subtitle = `${startSurah.name} <div class="small-num">${pad3(Number(startSurah.number))}</div> - ${endSurah.name} <div class="small-num">${pad3(Number(endSurah.number))}</div>`;
+  const subtitle = startSurah.number === endSurah.number
+    ? `${startSurah.name} <div class="small-num">${pad3(Number(startSurah.number))}</div>`
+    : `${startSurah.name} <div class="small-num">${pad3(Number(startSurah.number))}</div> - ${endSurah.name} <div class="small-num">${pad3(Number(endSurah.number))}</div>`;
 
   const verses = document.createElement('div'); verses.className = 'surah-verses';
   verses.innerHTML = subtitle;
@@ -690,6 +693,110 @@ function renderJuzList(norm = '') {
   navList.appendChild(frag);
 }
 
+// create a page button node
+function createPageNode(pageNum) {
+  const btn = document.createElement('button');
+  btn.className = 'surah-item';
+  btn.type = 'button';
+  btn.setAttribute('data-page', String(pageNum));
+
+  const left = document.createElement('div'); left.className = 'surah-left';
+  const titleRow = document.createElement('div'); titleRow.className = 'surah-title-row';
+
+  const name = document.createElement('div'); name.className = 'surah-name';
+  name.textContent = `Page ${pageNum}`;
+
+  titleRow.appendChild(name);
+
+  // Get subtitle using pagesMeta
+  let subtitle = '';
+  if (pagesMeta && Array.isArray(pagesMeta)) {
+    const p = pagesMeta.find(x => Number(x.page) === Number(pageNum));
+    if (p && p.start && p.end) {
+      const s1 = p.start; const s2 = p.end;
+      const s1num = pad3(Number(s1.surah_number));
+      const s2num = pad3(Number(s2.surah_number));
+      const s1name = (s1.name && (s1.name.transliteration)) || s1.name || 'Unknown';
+      const s2name = (s2.name && (s2.name.transliteration)) || s2.name || 'Unknown';
+      if (s1name == s2name) {
+        subtitle = `${s1name} <div class="small-num">${s1num}</div>`;
+      } else {
+        subtitle = `${s1name} <div class="small-num">${s1num}</div> - ${s2name} <div class="small-num">${s2num}</div>`;
+      }
+    }
+  }
+  
+  // Fallback if pagesMeta not available
+  if (!subtitle) {
+    function surahForPage(page) {
+      let idx = surahs.findIndex((s, i) => {
+        const next = surahs[i+1];
+        if (!next) return page >= s.startPage;
+        return page >= s.startPage && page < next.startPage;
+      });
+      if (idx === -1) idx = surahs.length - 1;
+      return surahs[idx];
+    }
+    const startSurah = surahForPage(pageNum) || { number: '?', name: 'Unknown' };
+    subtitle = `${startSurah.name} <div class="small-num">${pad3(Number(startSurah.number))}</div>`;
+  }
+
+  const verses = document.createElement('div'); verses.className = 'surah-verses';
+  verses.innerHTML = subtitle;
+
+  left.appendChild(titleRow);
+  left.appendChild(verses);
+
+  const right = document.createElement('div'); right.className = 'surah-page';
+  right.textContent = pageNum || '';
+
+  btn.appendChild(left);
+  btn.appendChild(right);
+
+  btn.addEventListener('click', () => {
+    const p = Number(pageNum || 1);
+    if (typeof window.showPage === 'function') window.showPage(p);
+    closeNav();
+  });
+
+  return btn;
+}
+
+function renderPageList(norm = '') {
+  if (!navList) return;
+  if (!pagesMetaLoaded) loadPagesMeta();
+  const q = String(norm).trim();
+
+  const pageArr = [];
+  for (let i = 1; i <= TOTAL_PAGES; i++) {
+    if (!q) {
+      pageArr.push(i);
+    } else {
+      const pageStr = String(i);
+      const pagePadded = String(i).padStart(3, '0');
+      if (pageStr.includes(q) || pagePadded.includes(q)) {
+        pageArr.push(i);
+      }
+    }
+  }
+
+  navList.innerHTML = '';
+  const CHUNK = 30;
+  let idx = 0;
+
+  function stepChunk() {
+    const end = Math.min(idx + CHUNK, pageArr.length);
+    const frag = document.createDocumentFragment();
+    for (; idx < end; idx++) {
+      frag.appendChild(createPageNode(pageArr[idx]));
+    }
+    navList.appendChild(frag);
+    if (idx < pageArr.length) requestAnimationFrame(stepChunk);
+  }
+
+  stepChunk();
+}
+
 
 function applyFilter(q) {
   const norm = String(q || '').trim().toLowerCase();
@@ -713,27 +820,39 @@ function applyFilter(q) {
   if (navActiveTab === 'juz') {
     renderJuzList(norm); // juz stays juz
   }
+
+  if (navActiveTab === 'page') {
+    renderPageList(norm); // page stays page
+  }
 }
 
 
 // tab switching helper
 function setNavTab(tab) {
-  navActiveTab = (tab === 'juz') ? 'juz' : 'surah';
+  if (tab === 'juz') navActiveTab = 'juz';
+  else if (tab === 'page') navActiveTab = 'page';
+  else navActiveTab = 'surah';
+
   if (tabSurah) tabSurah.setAttribute('aria-pressed', navActiveTab === 'surah');
   if (tabJuz) tabJuz.setAttribute('aria-pressed', navActiveTab === 'juz');
+  if (tabPage) tabPage.setAttribute('aria-pressed', navActiveTab === 'page');
   // change placeholder to match tab
   if (navSearch) {
-    navSearch.placeholder = (navActiveTab === 'surah') ? "Try typing Ya-Sin or 36 ..." : "Try typing Juz' 30 or 30 ...";
+    if (navActiveTab === 'surah') navSearch.placeholder = "Try typing Ya-Sin or 36 ...";
+    else if (navActiveTab === 'juz') navSearch.placeholder = "Try typing Juz' 30 or 30 ...";
+    else navSearch.placeholder = "Try typing page 42 or 42 ...";
     navSearch.value = '';
   }
   // render appropriate list
   if (navActiveTab === 'surah') renderList(surahs);
-  else renderJuzList();
+  else if (navActiveTab === 'juz') renderJuzList();
+  else if (navActiveTab === 'page') renderPageList();
 }
 
 // wire tab buttons (call once after DOM ready)
 if (tabSurah) tabSurah.addEventListener('click', () => { setNavTab('surah'); });
 if (tabJuz) tabJuz.addEventListener('click', () => { setNavTab('juz'); });
+if (tabPage) tabPage.addEventListener('click', () => { setNavTab('page'); });
 
 // ensure navSearch input still wires to new applyFilter
 if (navSearch) navSearch.addEventListener('input', (e) => { applyFilter(e.target.value); });
@@ -957,6 +1076,10 @@ setNavTab('surah');
     if (!norm) { renderJuzList(); return; }
     renderJuzList(norm); // your juz filter logic
   }
+  else if (navActiveTab === 'page') {
+    if (!norm) { renderPageList(); return; }
+    renderPageList(norm);
+  }
 }
 
 
@@ -983,7 +1106,7 @@ setNavTab('surah');
       return;
     }
 
-    if (ev.key === '/') { ev.preventDefault(); if (isOpen(menuOverlay)) closeMenu(); else openMenu(current); return; }
+
     if (ev.key === 'o' || ev.key === 'O') { ev.preventDefault(); if (isOpen(settingsOverlay)) closeSettings(); else openSettings(); return; }
     if (ev.key === 'n' || ev.key === 'N') { ev.preventDefault(); if (isOpen(navOverlay)) closeNav(); else openNav(); return; }
     if (ev.key === 'b' || ev.key === 'B') { ev.preventDefault(); if (isOpen(bmOverlay)) closeBm(); else openBm(); return; }
@@ -1484,6 +1607,11 @@ btnPlayPause.addEventListener('click', (e) => { e.stopPropagation(); togglePlayP
 
 // toggle panel with 'P'
 window.addEventListener('keydown', async (ev) => {
+  // don't trigger P if typing in an input
+  const active = document.activeElement;
+  if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+    return;
+  }
   if (ev.key === 'p' || ev.key === 'P') {
     ev.preventDefault();
     if (!overlay.classList.contains('open')) {
