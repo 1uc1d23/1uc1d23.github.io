@@ -748,7 +748,7 @@ a:focus, button:focus, input:focus, select:focus, [tabindex]:focus {
 #audioOverlay { position: fixed; inset: 0; pointer-events: none; z-index: 12000; }
 #audioPanel {
   position: fixed;
-  right: 20px;
+  left: 20px;
   bottom: 20px;
   width: min(320px, 92%);
   background: var(--panel);
