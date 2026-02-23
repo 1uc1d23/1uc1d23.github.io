@@ -78,7 +78,6 @@ body {
     image-rendering: auto;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    transform: translateZ(0);
     pointer-events: none;
     background: transparent;
     display: block;
