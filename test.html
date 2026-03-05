@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/feather-icons"></script>
+
+  <!-- External CSS -->
+  <link rel="stylesheet" href="styles.css">
+
+  <title>Quran</title>
+</head>
+
+<body>
+  <div id="settingsOverlay" aria-hidden="true">
+    <div id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsHeading">
+      <h3 id="settingsHeading">Settings</h3>
+      <div id="settingsScroll" class="settings-scroll" role="region" aria-live="polite" tabindex="0">
+        <div class="section">
+          <div style="margin-bottom:8px;font-size:13px;color:var(--muted-text);">Theme</div>
+          <div class="theme-section">
+            <button class="theme-sample sample-dark" id="btnDark" aria-pressed="false">
+              <img src="https://1uc1d23.github.io/assets/sample_dark.png" alt="Dark sample" />
+            </button>
+            <button class="theme-sample sample-sunset" id="btnSunset" aria-pressed="false">
+              <img src="https://1uc1d23.github.io/assets/sample_sunset.png" alt="Sunset sample" />
+            </button>
+          </div>
+          <div class="theme-labels">
+            <div>Dark</div>
+            <div>Sunset</div>
+          </div>
+        </div>
+        <div class="section">
+          <div style="margin-bottom:8px;font-size:13px;color:var(--muted-text);">
+            Tooltip
+          </div>
+
+          <select id="tooltipMode" class="settings-select">
+            <option value="translation" selected>Translation</option>
+            <option value="transliteration">Transliteration</option>
+            <option value="none">None</option>
+          </select>
+        </div>
+        <div class="section">
+          <div style="margin-bottom:8px;font-size:13px;color:var(--muted-text);">
+          </div>
+          <hr class="settings-divider">
+          <div style="margin-bottom:8px;margin-top:10px;font-size:13px;color:var(--muted-text);">
+            Preview
+          </div>
+          <div class="indopak-preview-box">
+            <div class="indopak-preview-text">بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِیْمِ ۟</div>
+          </div>
+          <div style="margin-bottom:8px;margin-top:12px;font-size:13px;color:var(--muted-text);">
+            Font Size
+          </div>
+          <div class="settings-stepper" aria-label="IndoPak Nastaleeq font size">
+            <button id="indopakFontSizeDown" class="settings-stepper-btn" type="button" aria-label="Decrease font size">
+              <i data-feather="minus"></i>
+            </button>
+            <div id="indopakFontSizeValue" class="settings-stepper-value">3</div>
+            <button id="indopakFontSizeUp" class="settings-stepper-btn" type="button" aria-label="Increase font size">
+              <i data-feather="plus"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="navOverlay" aria-hidden="true">
+    <div id="navPanel" role="dialog" aria-modal="true">
+      <h3 id="navHeading">Navigation</h3>
+      <p id="navSub" style="margin-top:-5px;margin-bottom:6px;font-size:13px;color:var(--muted-text-2);">Navigate the
+        Holy Qur'an</p>
+
+      <!-- tabs -->
+      <div class="nav-tabs" style="display:flex;margin-bottom:8px;">
+        <button id="tabSurah" class="nav-tab" type="button" aria-pressed="true">Surah</button>
+        <button id="tabJuz" class="nav-tab" type="button" aria-pressed="false">Juz'</button>
+        <button id="tabPage" class="nav-tab" type="button" aria-pressed="false">Page</button>
+      </div>
+
+      <div style="margin-top:4px;">
+        <input id="navSearch" type="search" placeholder="Try typing Ya-Sin or 36 ..." />
+      </div>
+
+      <div id="navList" class="nav-list" role="region" aria-live="polite" tabindex="0">
+        <!-- Surah buttons rendered by script.js -->
+      </div>
+    </div>
+  </div>
+
+  <div class="page-container">
+    <div class="page-header">
+      <div id="surah-label"></div>
+      <div id="juz-label"></div>
+    </div>
+
+    <div id="mushaf-page"></div>
+
+    <div id="page-footer" class="page-footer"></div>
+  </div>
+
+  <!-- External JS -->
+  <script src="js/main.js"></script>
+  <script src="js/page.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/navigation.js"></script>
+</body>
+
+</html>
