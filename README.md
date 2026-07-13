@@ -32,16 +32,9 @@
 </p>
 
 ## Get Started
-- Open `quran.html` in your browser or head to [the site](https://1uc1d23.github.io/quran.html).
+- Open `quran` in your browser or head to [the site](https://1uc1d23.github.io/quran).
 
 ## Features
 - Fast image preloading with safe swapping to avoid blank frames on rapid navigation.  
 - Bottom-right page Navigate panel and top-right Settings panel with theme switching.  
 - Two built-in themes (Dark and Sunset) implemented via CSS variables for instant customization.  
-
-## License
-- Include your preferred license file (e.g., `LICENSE`) and add a one-line summary here like “This project is licensed under the MIT License.”
-
-## Credits & data sources
-- Surah metadata is fetched from the `rn0x/Quran-Data` repository as noted above and should be credited when used in derived works.
-
