@@ -174,8 +174,8 @@ async function renderMushafPage(pageNumber) {
       `https://verses.quran.foundation/fonts/quran/hafs/v1/woff2/p${pageNumber}.woff2`
     );
 
-    await loadFont('surah-name', 'assets/sura_names.ttf');
-    await loadFont('bismillah', 'assets/bismillah.ttf');
+    await loadFont('surah-name', '../assets/sura_names.ttf');
+    await loadFont('bismillah', '../assets/bismillah.ttf');
 
     // Fetch page data (cached)
     let data;
