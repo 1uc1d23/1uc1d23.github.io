@@ -68,6 +68,37 @@ document.addEventListener('DOMContentLoaded', () => {
   const tabJuz = document.getElementById('tabJuz');
   const tabPage = document.getElementById('tabPage');
 
+  function getJuzForPage(page) {
+    const pageNum = Number(page);
+    if (!Number.isFinite(pageNum) || pageNum <= 0) return 1;
+
+    let currentJuz = 1;
+    Object.keys(JUZ_START_PAGES)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .forEach((juzNum) => {
+        if (pageNum >= Number(JUZ_START_PAGES[juzNum])) currentJuz = juzNum;
+      });
+
+    return currentJuz;
+  }
+
+  function createJuzSubheadingNode(juzNum) {
+    const heading = document.createElement('div');
+    heading.className = 'nav-subheading';
+    heading.textContent = `Juz' ${juzNum}`;
+    return heading;
+  }
+
+  function createNavSeparatorNode() {
+    const separator = document.createElement('div');
+    separator.className = 'nav-separator';
+    const rule = document.createElement('div');
+    rule.className = 'nav-separator-rule';
+    separator.appendChild(rule);
+    return separator;
+  }
+
   // ---------- create nodes ----------
   function createSurahNode(s) {
     const btn = document.createElement('button');
@@ -78,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const left = document.createElement('div'); left.className = 'surah-left';
     const titleRow = document.createElement('div'); titleRow.className = 'surah-title-row';
 
-    const name = document.createElement('div'); name.className = 'surah-name'; name.textContent = s.name;
+    const name = document.createElement('div'); name.className = 'surah-name'; name.innerHTML = `<span style="color: var(--muted-text)">${s.number}.</span>&nbsp;${s.name}`;
 
     const num = document.createElement('div'); num.className = 'surah-num'; num.textContent = pad3(s.number);
 
@@ -230,15 +261,45 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!navList) return;
     navList.innerHTML = '';
     if (!items || items.length === 0) return;
-    const frag = document.createDocumentFragment();
+
+    const sections = [];
+    items.forEach((surah) => {
+      const juzNum = Number(surah.juz) || getJuzForPage(surah.startPage);
+      const lastSection = sections[sections.length - 1];
+      if (!lastSection || lastSection.juz !== juzNum) {
+        sections.push({ juz: juzNum, surahs: [surah] });
+      } else {
+        lastSection.surahs.push(surah);
+      }
+    });
+
     let i = 0;
-    const CHUNK = 20;
+    const CHUNK = 8;
     function doChunk() {
       if (token !== renderTokenNav) return;
-      const end = Math.min(i + CHUNK, items.length);
-      for (; i < end; i++) frag.appendChild(createSurahNode(items[i]));
+      const frag = document.createDocumentFragment();
+      const end = Math.min(i + CHUNK, sections.length);
+      for (; i < end; i++) {
+        const section = sections[i];
+        const sectionNode = document.createElement('div');
+        sectionNode.className = 'nav-section';
+
+        const body = document.createElement('div');
+        body.className = 'nav-section-body';
+
+        sectionNode.appendChild(createJuzSubheadingNode(section.juz));
+        section.surahs.forEach((surah) => {
+          body.appendChild(createSurahNode(surah));
+        });
+        sectionNode.appendChild(body);
+        frag.appendChild(sectionNode);
+
+        if (i < sections.length - 1) {
+          frag.appendChild(createNavSeparatorNode());
+        }
+      }
       navList.appendChild(frag);
-      if (i < items.length) requestAnimationFrame(doChunk);
+      if (i < sections.length) requestAnimationFrame(doChunk);
     }
     doChunk();
   }
@@ -418,6 +479,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ensure ascending by surah number
     window.surahs.sort((a, b) => a.number - b.number);
+    window.surahs = window.surahs.map(s => ({
+      ...s,
+      juz: Number(s.juz) || getJuzForPage(s.startPage)
+    }));
   }
 
   // ---------- API fetching: try Quran.Foundation, fallback to other public apis ----------
