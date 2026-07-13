@@ -31,6 +31,11 @@
   Press <b>n</b> on keyboard to toggle Navigation menu
 </p>
 
+<p align="center">
+  <img src="assets/image3.png" height="300px" style="display:inline-block;"><br>
+  Click <b>on a verse number</b> to read in a better indopak + translation view
+</p>
+
 ## Get Started
 - Open `quran` in your browser or head to [the site](https://1uc1d23.github.io/quran).
 
