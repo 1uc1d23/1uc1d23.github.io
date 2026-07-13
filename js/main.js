@@ -1,5 +1,154 @@
 const loadedFonts = new Set();
 const globalAudio = new Audio(); // single reusable audio instance
+const chapterInfoCache = new Map();
+let surahInfoOverlay = null;
+let surahInfoHeader = null;
+let surahInfoBody = null;
+
+function sanitizeChapterInfoHtml(rawHtml) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(rawHtml || '', 'text/html');
+  const allowed = new Set(['H2', 'P', 'UL', 'OL', 'LI', 'EM', 'STRONG', 'BR', 'B', 'I']);
+  const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT);
+  const toReplace = [];
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (!allowed.has(node.tagName)) {
+      toReplace.push(node);
+      continue;
+    }
+    Array.from(node.attributes).forEach(attr => node.removeAttribute(attr.name));
+  }
+
+  toReplace.forEach(node => {
+    const text = doc.createTextNode(node.textContent || '');
+    node.replaceWith(text);
+  });
+
+  return doc.body.innerHTML;
+}
+
+function ensureSurahInfoModal() {
+  if (surahInfoOverlay) return;
+
+  surahInfoOverlay = document.createElement('div');
+  surahInfoOverlay.className = 'surah-info-overlay';
+
+  const modal = document.createElement('div');
+  modal.className = 'surah-info-modal';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'surah-info-close modal-btn';
+  closeBtn.setAttribute('aria-label', 'Close surah info');
+  closeBtn.setAttribute('title', 'Close view &nbsp;<span class="shortcut">Esc</span>');
+  closeBtn.innerHTML = '<i data-lucide="x"></i>';
+
+  const chromeHeader = document.createElement('div');
+  chromeHeader.className = 'surah-info-header';
+
+  surahInfoHeader = document.createElement('div');
+  surahInfoHeader.className = 'surah-info-heading';
+
+  surahInfoBody = document.createElement('div');
+  surahInfoBody.className = 'surah-info-body';
+
+  chromeHeader.appendChild(surahInfoHeader);
+  modal.appendChild(closeBtn);
+  modal.appendChild(chromeHeader);
+  modal.appendChild(surahInfoBody);
+  surahInfoOverlay.appendChild(modal);
+  document.body.appendChild(surahInfoOverlay);
+
+  closeBtn.addEventListener('click', () => {
+    surahInfoOverlay.classList.remove('visible');
+  });
+
+  surahInfoOverlay.addEventListener('click', (e) => {
+    if (e.target === surahInfoOverlay) {
+      surahInfoOverlay.classList.remove('visible');
+    }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && surahInfoOverlay.classList.contains('visible')) {
+      surahInfoOverlay.classList.remove('visible');
+    }
+  });
+
+  try { if (window.lucide) lucide.createIcons(); } catch (e) { }
+}
+
+async function fetchChapterInfo(surahNum) {
+  if (chapterInfoCache.has(surahNum)) return chapterInfoCache.get(surahNum);
+  const res = await fetch(`https://api.quran.com/api/v4/chapters/${surahNum}/info?language=en`);
+  if (!res.ok) throw new Error(`Failed to fetch chapter info for surah ${surahNum}`);
+  const data = await res.json();
+  const info = data.chapter_info || {};
+  chapterInfoCache.set(surahNum, info);
+  return info;
+}
+
+async function showSurahInfoPopup(surahNum, surahData) {
+  ensureSurahInfoModal();
+  surahInfoOverlay.classList.add('visible');
+
+  const simpleName = surahData?.name_complex || surahData?.name_simple || `Surah ${surahNum}`;
+  const translatedName = surahData?.translated_name?.name || '';
+  const placeRaw = surahData?.revelation_place || '';
+  const placeOfRevelation = placeRaw ? `${placeRaw.charAt(0).toUpperCase()}${placeRaw.slice(1)}` : 'Unknown';
+  const versesCount = Number.isFinite(Number(surahData?.verses_count)) ? Number(surahData.verses_count) : null;
+  const surahNumStr = String(surahNum).padStart(3, '0');
+  const versesLabel = versesCount === null ? 'Unknown verses' : `${versesCount} verse${versesCount === 1 ? '' : 's'}`;
+
+  surahInfoHeader.innerHTML = `
+    <div class="surah-info-head-main">
+      <div class="surah-info-num">${surahNumStr}</div>
+      <div class="surah-info-names">
+        <div class="surah-info-name-top">${surahNum}. ${simpleName}</div>
+        <div class="surah-info-name-bottom">${translatedName}</div>
+      </div>
+    </div>
+    <div class="surah-info-meta">${placeOfRevelation} &nbsp;–&nbsp; ${versesLabel}</div>
+  `;
+
+  surahInfoBody.innerHTML = `
+    <div class="verse-skeleton-line" style="width:95%"></div>
+    <div class="verse-skeleton-line" style="width:95%"></div>
+    <div class="verse-skeleton-line" style="width:60%"></div>
+    <br>
+    <div class="verse-skeleton-line" style="width:95%"></div>
+    <div class="verse-skeleton-line" style="width:95%"></div>
+    <div class="verse-skeleton-line" style="width:60%"></div>
+    <br>
+    <div class="verse-skeleton-line" style="width:95%"></div>
+    <div class="verse-skeleton-line" style="width:95%"></div>
+    <div class="verse-skeleton-line" style="width:60%"></div>
+    <br>
+    <div class="verse-skeleton-line" style="width:95%"></div>
+    <div class="verse-skeleton-line" style="width:95%"></div>
+    <div class="verse-skeleton-line" style="width:60%"></div>
+    <br>
+  `;
+
+  try {
+    const info = await fetchChapterInfo(surahNum);
+    const richText = sanitizeChapterInfoHtml(info.text || '');
+    const shortText = (info.short_text || '').trim();
+
+    if (richText) {
+      surahInfoBody.innerHTML = richText;
+    } else if (shortText) {
+      surahInfoBody.innerHTML = `<p>${shortText}</p>`;
+    } else {
+      surahInfoBody.innerHTML = '<p>Surah information is not available.</p>';
+    }
+
+  } catch (err) {
+    surahInfoBody.innerHTML = '<p>Unable to load surah information right now.</p>';
+  }
+}
 
 async function loadFont(name, url) {
   if (loadedFonts.has(name)) return name;
@@ -34,7 +183,7 @@ async function renderMushafPage(pageNumber) {
       data = pageDataCache.get(pageNumber);
     } else {
       const res = await fetch(
-        `https://api.quran.com/api/v4/verses/by_page/${pageNumber}?words=true`
+        `https://api.quran.com/api/v4/verses/by_page/${pageNumber}?words=true&translation_fields=ruku_number`
       );
       data = await res.json();
       pageDataCache.set(pageNumber, data);
@@ -46,20 +195,36 @@ async function renderMushafPage(pageNumber) {
     const verseMap = new Map();
     const linesMap = new Map();
 
-    verses.forEach(v => {
-      verseMap.set(v.verse_key, []);
+      function normalizeWordText(word, page) {
+        if (page === 443 && word.id === 50056 && typeof word.text === 'string') {
+          const firstToken = word.text.trim().split(/\s+/)[0];
+          return firstToken || word.text;
+        }
+        if (page === 454 && word.id === 27496 && typeof word.text === 'string') {
+          return 'ﯩ';
+        }
+        if (page === 454 && word.id === 27498 && typeof word.text === 'string') {
+          return 'ﯪﯫ';
+        }
+        return word.text;
+      }
 
-      v.words.forEach(w => {
-        let correctedLineNumber = w.line_number;
+      verses.forEach(v => {
+        verseMap.set(v.verse_key, []);
 
-        if (pageNumber === 177 && w.id === 6124 && w.line_number === 11) { correctedLineNumber = 12; }
-        if (!linesMap.has(correctedLineNumber)) { linesMap.set(correctedLineNumber, []); }
+        v.words.forEach(w => {
+          let correctedLineNumber = w.line_number;
 
-        linesMap.get(correctedLineNumber).push({
-          ...w,
-          line_number: correctedLineNumber,
-          verseKey: v.verse_key
-        });
+          if (pageNumber === 177 && w.id === 6124 && w.line_number === 11) { correctedLineNumber = 12; }
+          if (pageNumber === 443 && w.id === 50062 && w.line_number === 12) { correctedLineNumber = 13; }
+          if (!linesMap.has(correctedLineNumber)) { linesMap.set(correctedLineNumber, []); }
+
+          linesMap.get(correctedLineNumber).push({
+            ...w,
+            text: normalizeWordText(w, pageNumber),
+            line_number: correctedLineNumber,
+            verseKey: v.verse_key
+          });
 
       });
     });
@@ -113,8 +278,11 @@ async function renderMushafPage(pageNumber) {
     const seenVerses = new Set();
 
     function insertSurahHeader(surahNum) {
+      const surahData = chapters.find(c => c.id === surahNum);
       const header = document.createElement('div');
       header.className = 'mushaf-line surah-header';
+      header.setAttribute('role', 'button');
+      header.setAttribute('tabindex', '0');
 
       const bg = document.createElement('div');
       bg.className = 'surah-header-bg';
@@ -126,6 +294,15 @@ async function renderMushafPage(pageNumber) {
 
       header.appendChild(bg);
       header.appendChild(text);
+      header.addEventListener('click', () => {
+        showSurahInfoPopup(surahNum, surahData);
+      });
+      header.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          showSurahInfoPopup(surahNum, surahData);
+        }
+      });
       newPage.appendChild(header);
     }
 
@@ -382,7 +559,7 @@ window.addEventListener('keyup', (e) => {
       }
 
       tooltip.innerHTML = txt;
-      feather.replace();
+      lucide.createIcons();
       tooltip.classList.add('show');
 
       // position: centered above element if enough space, otherwise below
@@ -431,6 +608,7 @@ window.addEventListener('keyup', (e) => {
       el.addEventListener('mouseleave', () => hideFor(el), { passive: true });
       el.addEventListener('focus', () => showFor(el), { passive: true });
       el.addEventListener('blur', () => hideFor(el), { passive: true });
+      el.addEventListener('click', () => hideFor(el), { passive: true });
 
       // mobile: show tooltip on long press, hide on touchend
       let touchTimer = null;
