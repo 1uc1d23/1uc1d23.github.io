@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en" dir="rtl" translate="no">
+<head>
+  <meta charset="UTF-8">
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- External CSS -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <title>Al-Qur'an</title>
+</head>
+
+<body>
+  <div id="settingsOverlay" aria-hidden="true">
+    <div id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsHeading">
+      <h3 id="settingsHeading">Settings</h3>
+      <div id="settingsScroll" class="settings-scroll" role="region" aria-live="polite" tabindex="0">
+        <div class="section">
+          <div style="margin-bottom:8px;font-size:11px;color:var(--muted-text-2);font-weight:600;letter-spacing: 1px;">THEME</div>
+          <div class="theme-section">
+            <button class="theme-sample sample-dark" id="btnDark" aria-pressed="false" aria-label="Dark theme preview">
+              <span class="theme-swatch" aria-hidden="true">
+                <span class="theme-swatch-half theme-swatch-bg"></span>
+                <span class="theme-swatch-half theme-swatch-accent"></span>
+              </span>
+            </button>
+            <button class="theme-sample sample-light" id="btnLight" aria-pressed="false" aria-label="Light theme preview">
+              <span class="theme-swatch" aria-hidden="true">
+                <span class="theme-swatch-half theme-swatch-bg"></span>
+                <span class="theme-swatch-half theme-swatch-accent"></span>
+              </span>
+            </button>
+            <button class="theme-sample sample-sunset" id="btnSunset" aria-pressed="false" aria-label="Sunset theme preview">
+              <span class="theme-swatch" aria-hidden="true">
+                <span class="theme-swatch-half theme-swatch-bg"></span>
+                <span class="theme-swatch-half theme-swatch-accent"></span>
+              </span>
+            </button>
+          </div>
+          <div class="theme-labels">
+            <div>Dark</div>
+            <div>Sunset</div>
+            <div>Light</div>
+          </div>
+        </div>
+        <div class="section" style="margin-top: 25px;">
+          <div style="margin-bottom:8px;font-size:11px;color:var(--muted-text-2);font-weight:600;letter-spacing: 1px;">
+            TOOLTIP
+          </div>
+
+          <select id="tooltipMode" class="settings-select">
+            <option value="translation" selected>Translation</option>
+            <option value="transliteration">Transliteration</option>
+            <option value="none">None</option>
+          </select>
+
+          <button id="wordTranslationToggle" class="settings-toggle" type="button" aria-pressed="false">
+            <span class="settings-toggle-copy">
+              <span class="settings-toggle-title">Translation under word</span>
+            </span>
+            <span class="settings-toggle-switch" aria-hidden="true">
+              <span class="settings-toggle-knob"></span>
+            </span>
+          </button>
+        </div>
+        <div class="section">
+          <div style="margin-bottom:8px;font-size:13px;color:var(--muted-text);">
+          </div>
+          <hr class="settings-divider">
+          <div style="margin-bottom:8px;font-size:11px;color:var(--muted-text-2);font-weight:600;letter-spacing: 1px;">PREVIEW</div>
+          <div class="indopak-preview-box">
+            <div class="indopak-preview-text">بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِیْمِ ۟</div>
+            <div class="translation-preview-text">In the Name of Allah—the Most Compassionate, Most Merciful</div>
+          </div>
+          <div class="settings-stepper-row">
+            <div class="settings-stepper-label">
+              Arabic Size
+            </div>
+            <div class="settings-stepper" aria-label="IndoPak Nastaleeq font size">
+              <button id="indopakFontSizeDown" class="settings-stepper-btn" type="button" aria-label="Decrease font size">
+                <i data-lucide="minus" class="w-4 h-4"></i>
+              </button>
+              <div id="indopakFontSizeValue" class="settings-stepper-value">3</div>
+              <button id="indopakFontSizeUp" class="settings-stepper-btn" type="button" aria-label="Increase font size">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+          <div class="settings-stepper-row">
+            <div class="settings-stepper-label">Translation Size</div>
+            <div class="settings-stepper" aria-label="Translation font size">
+              <button id="translationFontSizeDown" class="settings-stepper-btn" type="button" aria-label="Decrease translation font size">
+                <i data-lucide="minus" class="w-4 h-4"></i>
+              </button>
+              <div id="translationFontSizeValue" class="settings-stepper-value">3</div>
+              <button id="translationFontSizeUp" class="settings-stepper-btn" type="button" aria-label="Increase translation font size">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="navOverlay" aria-hidden="true">
+    <div id="navPanel" role="dialog" aria-modal="true">
+      <h3 id="navHeading" style="display: flex; gap: 7px; font-size: 18px;font-weight: 600;">
+        Navigation
+      </h3>
+
+      <!-- tabs -->
+      <div class="nav-tabs" style="display:flex;">
+        <button id="tabSurah" class="nav-tab" type="button" aria-pressed="true">Surah</button>
+        <button id="tabJuz" class="nav-tab" type="button" aria-pressed="false">Juz'</button>
+        <button id="tabPage" class="nav-tab" type="button" aria-pressed="false">Page</button>
+      </div>
+
+      <div class="nav-search-wrap">
+        <input id="navSearch" type="search" placeholder="Try typing Ya-Sin or 36 ..." autocomplete="off"/>
+        <button id="navMicBtn" class="nav-mic-btn" type="button" title="Search by voice" aria-label="Search by voice">
+          <i data-lucide="mic"></i>
+        </button>
+      </div>
+      <div id="navAudioResults" class="nav-audio-results" aria-live="polite"></div>
+
+      <div id="navList" class="nav-list" role="region" aria-live="polite" tabindex="0">
+        <!-- Surah buttons rendered by script.js -->
+      </div>
+    </div>
+  </div>
+
+  <div id="bookmarkOverlay" aria-hidden="true">
+    <div id="bookmarkPanel" role="dialog" aria-modal="true" aria-labelledby="bookmarkHeading">
+      <div class="bookmark-header-row">
+        <div class="bookmark-header-text">
+      <h3 id="bookmarkHeading" style="display: flex; gap: 7px; font-weight: 600;">
+        Bookmarks
+      </h3>
+          <p id="bookmarkSub">Track & save your progress</p>
+        </div>
+        <div class="bookmark-header-actions">
+          <button id="bookmarkAddBtn" class="bookmark-action-btn" type="button" title="Add bookmark">
+            <i data-lucide="plus"></i>
+          </button>
+          <button id="bookmarkDeleteBtn" class="bookmark-action-btn" type="button" title="Delete bookmarks">
+            <i data-lucide="trash-2"></i>
+          </button>
+        </div>
+      </div>
+      <div id="bookmarkList" class="bookmark-list" role="region" aria-live="polite" tabindex="0">
+        <!-- bookmark buttons rendered by script -->
+      </div>
+    </div>
+  </div>
+
+  <div class="page-container">
+    <div class="page-header">
+      <div id="surah-label"></div>
+      <div id="juz-label"></div>
+    </div>
+
+    <div id="mushaf-page"></div>
+
+    <div id="page-footer" class="page-footer"></div>
+  </div>
+
+  <!-- External JS -->
+  <script src="js/main.js"></script>
+  <script src="js/page.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/navigation.js"></script>
+  <script src="js/bookmarks.js"></script>
+</body>
+
+</html>
