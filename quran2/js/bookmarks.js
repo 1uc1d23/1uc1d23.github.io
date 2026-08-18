@@ -7,6 +7,14 @@
   const deleteBtn = document.getElementById('bookmarkDeleteBtn');
 
   const BOOKMARKS_KEY = 'mushaf-bookmarks';
+  const BOOKMARK_COLORS = {
+    red: { label: 'Red', color: 'rgb(254, 202, 202)', bg: 'rgba(254, 202, 202, 0.28)' },
+    yellow: { label: 'Yellow', color: 'rgb(253, 230, 138)', bg: 'rgba(244, 197, 66, 0.34)' },
+    green: { label: 'Green', color: 'rgb(187, 247, 208)', bg: 'rgba(95, 200, 120, 0.28)' },
+    blue: { label: 'Blue', color: 'rgb(186, 230, 253)', bg: 'rgba(90, 169, 255, 0.28)' },
+    pink: { label: 'Pink', color: 'rgb(233, 213, 255)', bg: 'rgba(244, 126, 179, 0.3)' }
+  };
+  const DEFAULT_BOOKMARK_COLOR = 'yellow';
   let bookmarks = [];
   let deleteMode = false;
   let captureMode = false;
@@ -35,6 +43,7 @@
       const raw = localStorage.getItem(BOOKMARKS_KEY);
       const parsed = raw ? JSON.parse(raw) : [];
       bookmarks = Array.isArray(parsed) ? parsed : [];
+      bookmarks = bookmarks.map(normalizeBookmark).filter(Boolean);
       bookmarks.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     } catch {
       bookmarks = [];
@@ -53,12 +62,42 @@
     return `Surah ${num}`;
   }
 
+  function getBookmarkColor(colorKey) {
+    return BOOKMARK_COLORS[colorKey] || BOOKMARK_COLORS[DEFAULT_BOOKMARK_COLOR];
+  }
+
+  function getDefaultBookmarkName(surahName, ayahNum) {
+    return `${surahName} ${ayahNum}`;
+  }
+
+  function normalizeBookmark(item) {
+    if (!item || !item.verseKey) return null;
+    const parts = String(item.verseKey).split(':');
+    const surahNum = Number(item.surah || parts[0] || 0);
+    const ayahNum = Number(item.ayah || parts[1] || 0);
+    if (!surahNum || !ayahNum) return null;
+    const surahName = item.surahName || getSurahNameByNumber(surahNum);
+    const colorKey = BOOKMARK_COLORS[item.colorKey] ? item.colorKey : DEFAULT_BOOKMARK_COLOR;
+    return {
+      ...item,
+      surah: surahNum,
+      ayah: ayahNum,
+      surahName,
+      colorKey,
+      name: item.name || getDefaultBookmarkName(surahName, ayahNum),
+      updatedAt: item.updatedAt || Date.now()
+    };
+  }
+
   function buildBookmarkNode(item) {
     const btn = document.createElement('button');
     btn.className = 'bookmark-item';
     btn.type = 'button';
     btn.dataset.verseKey = item.verseKey;
     btn.dataset.page = String(item.page || '');
+    const color = getBookmarkColor(item.colorKey);
+    btn.style.setProperty('--bookmark-color', color.color);
+    btn.style.setProperty('--bookmark-bg', color.bg);
 
     const left = document.createElement('div');
     left.className = 'bookmark-left';
@@ -68,18 +107,13 @@
 
     const name = document.createElement('div');
     name.className = 'bookmark-name';
-    name.textContent = item.surahName || `Surah ${item.surah}`;
-
-    const num = document.createElement('div');
-    num.className = 'surah-num';
-    num.textContent = String(item.surah || '').padStart(3, '0');
+    name.textContent = item.name || getDefaultBookmarkName(item.surahName || `Surah ${item.surah}`, item.ayah);
 
     titleRow.appendChild(name);
-    titleRow.appendChild(num);
 
     const meta = document.createElement('div');
     meta.className = 'bookmark-meta';
-    meta.textContent = `Verse ${item.ayah || ''}`;
+    meta.textContent = `${item.surahName || `Surah ${item.surah}`} - Verse ${item.ayah || ''}`;
 
     left.appendChild(titleRow);
     left.appendChild(meta);
@@ -133,12 +167,137 @@
     highlightAllBookmarkedVerses();
   }
 
-  function addBookmark(verseKey) {
-    if (!verseKey) return;
+  function openBookmarkPrompt(verseKey) {
+    if (!verseKey) return Promise.resolve(null);
     const parts = verseKey.split(':');
     const surahNum = Number(parts[0] || 0);
     const ayahNum = Number(parts[1] || 0);
-    if (!surahNum || !ayahNum) return;
+    if (!surahNum || !ayahNum) return Promise.resolve(null);
+
+    const existingIdx = bookmarks.findIndex(b => b.verseKey === verseKey);
+    const surahName = getSurahNameByNumber(surahNum);
+    const existing = existingIdx >= 0 ? normalizeBookmark(bookmarks[existingIdx]) : null;
+    const selectedColor = { key: existing?.colorKey || DEFAULT_BOOKMARK_COLOR };
+
+    const promptOverlay = document.createElement('div');
+    promptOverlay.className = 'bookmark-prompt-overlay open';
+
+    const dialog = document.createElement('form');
+    dialog.className = 'bookmark-prompt';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-label', 'Save bookmark');
+
+    const title = document.createElement('h3');
+    title.textContent = 'Save Bookmark';
+
+    const subtitle = document.createElement('p');
+    subtitle.textContent = `${surahName} - Verse ${ayahNum}`;
+
+    const nameLabel = document.createElement('label');
+    nameLabel.className = 'bookmark-prompt-label';
+    nameLabel.textContent = 'Name';
+
+    const input = document.createElement('input');
+    input.className = 'bookmark-prompt-input';
+    input.type = 'text';
+    input.maxLength = 48;
+    input.placeholder = getDefaultBookmarkName(surahName, ayahNum);
+    input.value = existing?.name || getDefaultBookmarkName(surahName, ayahNum);
+
+    const colorLabel = document.createElement('div');
+    colorLabel.className = 'bookmark-prompt-label';
+    colorLabel.textContent = 'Highlight color';
+
+    const colorGrid = document.createElement('div');
+    colorGrid.className = 'bookmark-color-grid';
+
+    Object.entries(BOOKMARK_COLORS).forEach(([key, value]) => {
+      const button = document.createElement('button');
+      button.className = 'bookmark-color-option';
+      button.type = 'button';
+      button.title = value.label;
+      button.setAttribute('aria-label', value.label);
+      button.setAttribute('aria-pressed', String(key === selectedColor.key));
+      button.style.setProperty('--bookmark-color', value.color);
+      button.style.setProperty('--bookmark-bg', value.bg);
+      button.addEventListener('click', () => {
+        selectedColor.key = key;
+        colorGrid.querySelectorAll('.bookmark-color-option').forEach(option => {
+          option.setAttribute('aria-pressed', String(option === button));
+        });
+      });
+      colorGrid.appendChild(button);
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'bookmark-prompt-actions';
+
+    const cancel = document.createElement('button');
+    cancel.className = 'bookmark-prompt-btn';
+    cancel.type = 'button';
+    cancel.textContent = 'Cancel';
+
+    const save = document.createElement('button');
+    save.className = 'bookmark-prompt-btn primary';
+    save.type = 'submit';
+    save.textContent = 'Save';
+
+    actions.appendChild(cancel);
+    actions.appendChild(save);
+    nameLabel.appendChild(input);
+    dialog.appendChild(title);
+    dialog.appendChild(subtitle);
+    dialog.appendChild(nameLabel);
+    dialog.appendChild(colorLabel);
+    dialog.appendChild(colorGrid);
+    dialog.appendChild(actions);
+    promptOverlay.appendChild(dialog);
+    document.body.appendChild(promptOverlay);
+
+    return new Promise(resolve => {
+      function close(value) {
+        document.removeEventListener('keydown', onKeydown, true);
+        promptOverlay.remove();
+        resolve(value);
+      }
+
+      function onKeydown(e) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          close(null);
+        }
+      }
+
+      promptOverlay.addEventListener('click', (e) => {
+        if (e.target === promptOverlay) close(null);
+      });
+      cancel.addEventListener('click', () => close(null));
+      dialog.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const typedName = input.value.trim();
+        close({
+          name: typedName || getDefaultBookmarkName(surahName, ayahNum),
+          colorKey: selectedColor.key
+        });
+      });
+      document.addEventListener('keydown', onKeydown, true);
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 0);
+    });
+  }
+
+  async function addBookmark(verseKey) {
+    if (!verseKey) return false;
+    const parts = verseKey.split(':');
+    const surahNum = Number(parts[0] || 0);
+    const ayahNum = Number(parts[1] || 0);
+    if (!surahNum || !ayahNum) return false;
+
+    const details = await openBookmarkPrompt(verseKey);
+    if (!details) return false;
 
     const existingIdx = bookmarks.findIndex(b => b.verseKey === verseKey);
     const surahName = getSurahNameByNumber(surahNum);
@@ -148,6 +307,8 @@
       surah: surahNum,
       ayah: ayahNum,
       surahName,
+      name: details.name,
+      colorKey: details.colorKey,
       page,
       updatedAt: Date.now()
     };
@@ -159,6 +320,7 @@
     saveBookmarks();
     renderBookmarks();
     highlightAllBookmarkedVerses();
+    return true;
   }
 
   function ensureTooltip() {
@@ -223,21 +385,53 @@
     // 1. Remove stale bookmark classes first
     document.querySelectorAll('.word.is-bookmarked').forEach(w => {
       w.classList.remove('is-bookmarked');
+      w.style.removeProperty('--bookmark-bg');
+      w.style.removeProperty('--bookmark-color');
+    });
+    document.querySelectorAll('.verse-modal-item.is-bookmarked').forEach(block => {
+      block.classList.remove('is-bookmarked');
+      block.style.removeProperty('--bookmark-bg');
+      block.style.removeProperty('--bookmark-color');
+    });
+    document.querySelectorAll('.bookmark-section-badge').forEach(badge => {
+      badge.remove();
     });
 
     if (!bookmarks.length) return;
 
     // 2. Build a quick lookup dictionary for current array items
-    const activeKeys = new Set(bookmarks.map(b => b.verseKey));
+    const activeMap = new Map(bookmarks.map(b => [b.verseKey, normalizeBookmark(b)]));
 
     // 3. Scan the page elements and mark matches
     const words = document.querySelectorAll('.word');
     words.forEach(w => {
       const k = extractVerseKeyFromElement(w);
-      if (k && activeKeys.has(k)) {
+      const bookmark = activeMap.get(k);
+      if (k && bookmark) {
+        const color = getBookmarkColor(bookmark.colorKey);
         w.classList.add('is-bookmarked');
+        w.style.setProperty('--bookmark-bg', color.bg);
+        w.style.setProperty('--bookmark-color', color.color);
       }
     });
+
+    document.querySelectorAll('.verse-modal-item[data-verse-key]').forEach(block => {
+      const bookmark = activeMap.get(block.dataset.verseKey);
+      if (!bookmark) return;
+      const color = getBookmarkColor(bookmark.colorKey);
+      block.classList.add('is-bookmarked');
+      block.style.setProperty('--bookmark-bg', color.bg);
+      block.style.setProperty('--bookmark-color', color.color);
+
+      const badge = document.createElement('div');
+      badge.className = 'bookmark-section-badge';
+      badge.innerHTML = '<i data-lucide="bookmark" class="w-4 h-4"></i>';
+      const label = document.createElement('span');
+      label.textContent = bookmark.name || getDefaultBookmarkName(bookmark.surahName, bookmark.ayah);
+      badge.appendChild(label);
+      block.prepend(badge);
+    });
+    try { if (window.lucide) lucide.createIcons(); } catch (e) { }
   }
 
   function setHoverVerse(verseKey) {
@@ -278,7 +472,7 @@
     setTooltipText('Hover over an ayah');
   }
 
-  function handleCaptureClick(e) {
+  async function handleCaptureClick(e) {
     if (!captureMode) return;
     const word = e.target.closest('.word');
     if (!word) return;
@@ -287,8 +481,9 @@
     e.preventDefault();
     e.stopPropagation();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-    addBookmark(k);
-    exitCaptureMode(true);
+    exitCaptureMode(false);
+    const saved = await addBookmark(k);
+    if (saved) openPanel();
   }
 
   function handleKeydown(e) {
