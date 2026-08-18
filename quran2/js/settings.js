@@ -7,7 +7,7 @@
 
     const darkBtn = document.getElementById('btnDark');
     const sunsetBtn = document.getElementById('btnSunset');
-    const roseGoldBtn = document.getElementById('btnRoseGold');
+    const LightBtn = document.getElementById('btnLight');
     const tooltipSelect = document.getElementById('tooltipMode');
     const wordTranslationToggle = document.getElementById('wordTranslationToggle');
     const indopakFontSizeDown = document.getElementById('indopakFontSizeDown');
@@ -38,12 +38,12 @@
     // THEME APPLY
     // -------------------------
     function applyTheme(theme) {
-        document.body.classList.remove('theme-sunset', 'theme-rose-gold');
+        document.body.classList.remove('theme-sunset', 'theme-light');
 
         if (theme === 'sunset') {
             document.body.classList.add('theme-sunset');
-        } else if (theme === 'rose-gold') {
-            document.body.classList.add('theme-rose-gold');
+        } else if (theme === 'light') {
+            document.body.classList.add('theme-light');
         }
 
         localStorage.setItem(STORAGE_KEY, theme);
@@ -53,12 +53,12 @@
     function updateActiveButton(theme) {
         darkBtn?.classList.remove('active');
         sunsetBtn?.classList.remove('active');
-        roseGoldBtn?.classList.remove('active');
+        LightBtn?.classList.remove('active');
 
         if (theme === 'sunset') {
             sunsetBtn?.classList.add('active');
-        } else if (theme === 'rose-gold') {
-            roseGoldBtn?.classList.add('active');
+        } else if (theme === 'light') {
+            LightBtn?.classList.add('active');
         } else {
             darkBtn?.classList.add('active');
         }
@@ -156,8 +156,8 @@
 
         if (saved === 'sunset') {
             applyTheme('sunset');
-        } else if (saved === 'rose-gold') {
-            applyTheme('rose-gold');
+        } else if (saved === 'light') {
+            applyTheme('light');
         } else {
             applyTheme('dark');
         }
@@ -199,8 +199,8 @@
     sunsetBtn?.addEventListener('click', () => {
         applyTheme('sunset');
     });
-    roseGoldBtn?.addEventListener('click', () => {
-        applyTheme('rose-gold');
+    LightBtn?.addEventListener('click', () => {
+        applyTheme('light');
     });
 
     window.addEventListener('keydown', ev => {
