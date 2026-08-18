@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Safe viewer reference so setPageImg doesn't throw if page viewer isn't present
   const viewer = document.getElementById('viewer') || document.querySelector('[data-role="viewer"]') || document.querySelector('.viewer') || null;
 
-  const TOTAL_PAGES = window.TOTAL_PAGES || 604;
+  const TOTAL_PAGES = window.TOTAL_PAGES || 610;
   let pagesMeta = null;
   let pagesMetaLoaded = false;
   let speechRecognition = null;
@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     1: 1, 2: 22, 3: 42, 4: 62, 5: 82, 6: 102, 7: 121, 8: 142, 9: 162, 10: 182,
     11: 201, 12: 222, 13: 242, 14: 262, 15: 282, 16: 302, 17: 322,
     18: 342, 19: 362, 20: 382, 21: 402, 22: 422, 23: 442, 24: 462,
-    25: 482, 26: 502, 27: 522, 28: 542, 29: 562, 30: 582
+    25: 482, 26: 502, 27: 522, 28: 542, 29: 562, 30: 586
   };
 
   // ---------- utilities ----------
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function getPageForVerse(verseKey) {
     if (versePageCache.has(verseKey)) return versePageCache.get(verseKey);
     try {
-      const response = await fetch(`https://api.quran.com/api/v4/verses/by_key/${encodeURIComponent(verseKey)}?fields=page_number`);
+      const response = await fetch(`https://api.quran.com/api/qdc/verses/by_key/${encodeURIComponent(verseKey)}?fields=page_number&mushaf=6`);
       if (!response.ok) throw new Error('page lookup failed');
       const data = await response.json();
       const page = Number(data?.verse?.page_number || data?.verse?.page);
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function ensureChaptersCache() {
     if (quranChaptersCache) return quranChaptersCache;
     try {
-      const response = await fetch('https://api.quran.com/api/v4/chapters?language=en');
+      const response = await fetch('https://api.quran.com/api/qdc/chapters?language=en');
       if (!response.ok) throw new Error();
       const data = await response.json();
 
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (navSearch) navSearch.value = cleaned;
     setAudioResultsState('Searching ayahs...');
     try {
-      const response = await fetch(`https://api.quran.com/api/v4/search?mode=quick&query=${encodeURIComponent(cleaned)}`);
+      const response = await fetch(`https://api.quran.com/api/qdc/search?mode=quick&query=${encodeURIComponent(cleaned)}`);
       if (!response.ok) throw new Error('search failed');
       const data = await response.json();
       if (token !== audioSearchToken) return;
@@ -795,7 +795,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // try sequence of endpoints (resilient)
     const candidates = [
-      'https://api.quran.com/api/v4/chapters'
+      'https://api.quran.com/api/qdc/chapters'
     ];
 
     for (const url of candidates) {

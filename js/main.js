@@ -159,6 +159,161 @@ async function loadFont(name, url) {
   return name;
 }
 
+function normalizeMushafLineWidths() {
+  const LINE_WIDTH_VW = 28;
+  const LINE_WIDTH = window.innerWidth * (LINE_WIDTH_VW / 100);
+  const BASE_GAP = '0.3vw';
+
+  const lines = [
+    ...document.querySelectorAll(
+      '#mushaf-page .mushaf-line'
+    )
+  ];
+
+  if (!lines.length) return;
+
+  lines.forEach(line => {
+    const text = line.querySelector('.mushaf-text');
+    if (!text) return;
+
+    const isLastLineOfSurah =
+      !line.classList.contains('justified');
+
+    text.style.transform = 'scaleX(1)';
+    text.style.setProperty('--mushaf-scale', '1');
+    text.style.transformOrigin = 'center center';
+    text.style.gap = BASE_GAP;
+
+
+    void text.offsetWidth;
+
+    let width = text.getBoundingClientRect().width;
+
+    if (!width) return;
+
+    const wordCount = text.children.length;
+    const gapCount = Math.max(0, wordCount - 1);
+
+    // Last actual line of a surah:
+    // leave natural if it fits.
+    if (
+      isLastLineOfSurah &&
+      width <= LINE_WIDTH
+    ) {
+      return;
+    }
+
+    // Too wide: reduce gap first, then squish.
+    if (width > LINE_WIDTH) {
+      if (gapCount > 0) {
+        const computedStyle = getComputedStyle(text);
+
+        let currentGap =
+          parseFloat(computedStyle.columnGap);
+
+        if (!Number.isFinite(currentGap)) {
+          currentGap =
+            parseFloat(computedStyle.gap);
+        }
+
+        if (!Number.isFinite(currentGap)) {
+          currentGap = 0;
+        }
+
+        const totalGapWidth =
+          currentGap * gapCount;
+
+        const overflow =
+          width - LINE_WIDTH;
+
+        const gapReduction =
+          Math.min(
+            overflow,
+            totalGapWidth
+          );
+
+        const newGap =
+          Math.max(
+            0,
+            currentGap -
+            gapReduction / gapCount
+          );
+
+        text.style.gap = `${(newGap / window.innerWidth) * 100}vw`;
+
+        void text.offsetWidth;
+
+        width =
+          text.getBoundingClientRect().width;
+      }
+
+      if (width > LINE_WIDTH) {
+        const scale =
+          Math.min(
+            1,
+            (LINE_WIDTH / width) *
+            (749 / 100)
+          );
+
+        text.style.transform =
+          `scaleX(${scale})`;
+
+
+        text.style.setProperty(
+          '--mushaf-scale',
+          scale
+        );
+      }
+
+      return;
+    }
+
+    // Short normal justified line:
+    // increase word gap to exactly fill width.
+    if (
+      width < LINE_WIDTH &&
+      !isLastLineOfSurah
+    ) {
+      if (gapCount === 0) return;
+
+      const computedStyle =
+        getComputedStyle(text);
+
+      let currentGap =
+        parseFloat(
+          computedStyle.columnGap
+        );
+
+      if (!Number.isFinite(currentGap)) {
+        currentGap =
+          parseFloat(
+            computedStyle.gap
+          );
+      }
+
+      if (!Number.isFinite(currentGap)) {
+        currentGap = 0;
+      }
+
+      const wordsOnlyWidth =
+        width -
+        currentGap * gapCount;
+
+      const newGap =
+        (
+          LINE_WIDTH -
+          wordsOnlyWidth
+        ) / gapCount;
+
+      text.style.gap =
+        `${Math.max(0, newGap)}px`;
+
+      void text.offsetWidth;
+    }
+  });
+}
+
+
 async function renderMushafPage(pageNumber) {
   const container = document.getElementById('mushaf-page');
   const surahLabelDiv = document.getElementById('surah-label');
@@ -171,294 +326,897 @@ async function renderMushafPage(pageNumber) {
     // Load fonts
     const fontName = await loadFont(
       `p${pageNumber}-v1`,
-      `https://verses.quran.foundation/fonts/quran/hafs/v1/woff2/p${pageNumber}.woff2`
+      `https://static-cdn.tarteel.ai/qul/fonts/dk/DigitalKhattIndoPak.otf`
     );
 
-    await loadFont('surah-name', 'assets/sura_names.ttf');
-    await loadFont('bismillah', 'assets/bismillah.ttf');
+    await loadFont(
+      'surah-name',
+      'assets/sura_names.ttf'
+    );
+
+    await loadFont(
+      'bismillah',
+      'assets/bismillah.ttf'
+    );
+
+    // Load Indopak JSON once
+    if (!window.indopakData) {
+      const indopakRes = await fetch(
+        'assets/Indopak.json'
+      );
+
+      if (!indopakRes.ok) {
+        throw new Error(
+          `Failed to load Indopak.json: ${indopakRes.status}`
+        );
+      }
+
+      window.indopakData =
+        await indopakRes.json();
+    }
+
+    const indopakData =
+      window.indopakData;
 
     // Fetch page data (cached)
     let data;
+
     if (pageDataCache.has(pageNumber)) {
       data = pageDataCache.get(pageNumber);
     } else {
       const res = await fetch(
-        `https://api.quran.com/api/v4/verses/by_page/${pageNumber}?words=true&translation_fields=ruku_number`
+        `https://api.quran.com/api/qdc/verses/by_page/${pageNumber}?words=true&translation_fields=resource_name%2Clanguage_id%2Cresource_id&per_page=all&fields=text_indopak_nastaleeq%2Cchapter_id%2Chizb_number%2Ctext_imlaei_simple&translations=131&reciter=6&word_translation_language=en&mushaf=6&filter_page_words=true&word_fields=verse_key%2Cverse_id%2Cpage_number%2Clocation%2Ctext_indopak_nastaleeq%2Ctext_imlaei_simple%2Ctext_indopak%2Cqpc_uthmani_hafs`
       );
+
       data = await res.json();
-      pageDataCache.set(pageNumber, data);
+
+      pageDataCache.set(
+        pageNumber,
+        data
+      );
     }
 
     const verses = data.verses;
+
     if (!verses.length) return;
 
     const verseMap = new Map();
     const linesMap = new Map();
 
-      function normalizeWordText(word, page) {
-        if (page === 443 && word.id === 50056 && typeof word.text === 'string') {
-          const firstToken = word.text.trim().split(/\s+/)[0];
-          return firstToken || word.text;
-        }
-        if (page === 454 && word.id === 27496 && typeof word.text === 'string') {
-          return 'ﯩ';
-        }
-        if (page === 454 && word.id === 27498 && typeof word.text === 'string') {
-          return 'ﯪﯫ';
-        }
-        return word.text;
+    function getIndopakWordText(
+      verseKey,
+      position
+    ) {
+      const location =
+        `${verseKey}:${position}`;
+
+      const wordData =
+        indopakData[location];
+
+      if (!wordData) {
+        console.warn(
+          `No Indopak data found for word ${location}`
+        );
+
+        return null;
       }
 
-      verses.forEach(v => {
-        verseMap.set(v.verse_key, []);
+      return wordData.text ?? null;
+    }
 
-        v.words.forEach(w => {
-          let correctedLineNumber = w.line_number;
+    function normalizeWordText(
+      word,
+      page
+    ) {
+      /*
+       * Instead of using:
+       * word.qpc_uthmani_hafs
+       *
+       * use:
+       * Indopak.json -> verse_key -> words[position].text
+       */
+      const indopakText =
+        getIndopakWordText(
+          word.verse_key,
+          word.position
+        );
 
-          if (pageNumber === 177 && w.id === 6124 && w.line_number === 11) { correctedLineNumber = 12; }
-          if (pageNumber === 443 && w.id === 50062 && w.line_number === 12) { correctedLineNumber = 13; }
-          if (!linesMap.has(correctedLineNumber)) { linesMap.set(correctedLineNumber, []); }
+      /*
+       * If the JSON is missing something,
+       * fall back to the API.
+       */
+      if (
+        typeof indopakText === 'string'
+      ) {
+        return indopakText;
+      }
 
-          linesMap.get(correctedLineNumber).push({
+      // Existing special cases / fallback
+      if (
+        page === 443 &&
+        word.id === 50056 &&
+        typeof word.qpc_uthmani_hafs === 'string'
+      ) {
+        const firstToken =
+          word.qpc_uthmani_hafs
+            .trim()
+            .split(/\s+/)[0];
+
+        return (
+          firstToken ||
+          word.qpc_uthmani_hafs
+        );
+      }
+
+      if (
+        page === 454 &&
+        word.id === 27496 &&
+        typeof word.qpc_uthmani_hafs === 'string'
+      ) {
+        return 'ﯩ';
+      }
+
+      if (
+        page === 454 &&
+        word.id === 27498 &&
+        typeof word.qpc_uthmani_hafs === 'string'
+      ) {
+        return '</tool_call>';
+      }
+
+      return word.qpc_uthmani_hafs;
+    }
+
+    verses.forEach(v => {
+      verseMap.set(
+        v.verse_key,
+        []
+      );
+
+      v.words.forEach(w => {
+        let correctedLineNumber =
+          w.line_number;
+
+        if (
+          pageNumber === 177 &&
+          w.id === 6124 &&
+          w.line_number === 11
+        ) {
+          correctedLineNumber = 12;
+        }
+
+        if (
+          pageNumber === 443 &&
+          w.id === 50062 &&
+          w.line_number === 12
+        ) {
+          correctedLineNumber = 13;
+        }
+
+        // Page 261 API correction:
+        // Surah Ibrahim 14:52 ends on line 12,
+        // but Surah Al-Hijr 15:1 starts on line 13.
+        if (
+          pageNumber === 261 &&
+          w.verse_key === '15:1' &&
+          w.line_number === 12
+        ) {
+          correctedLineNumber = 13;
+        }
+
+        if (
+          !linesMap.has(
+            correctedLineNumber
+          )
+        ) {
+          linesMap.set(
+            correctedLineNumber,
+            []
+          );
+        }
+
+        linesMap
+          .get(correctedLineNumber)
+          .push({
             ...w,
-            text: normalizeWordText(w, pageNumber),
-            line_number: correctedLineNumber,
-            verseKey: v.verse_key
-          });
 
+            text:
+              getIndopakWordText(
+                w.verse_key,
+                w.position
+              ) ??
+              normalizeWordText(
+                w,
+                pageNumber
+              ),
+
+            line_number:
+              correctedLineNumber,
+
+            verseKey:
+              v.verse_key
+          });
       });
     });
 
     // Fetch chapters
-    const chaptersRes = await fetch('https://api.quran.com/api/v4/chapters');
-    const chaptersData = await chaptersRes.json();
-    const chapters = chaptersData.chapters;
+    const chaptersRes = await fetch(
+      'https://api.quran.com/api/v4/chapters'
+    );
+
+    const chaptersData =
+      await chaptersRes.json();
+
+    const chapters =
+      chaptersData.chapters;
 
     // Determine surahs on page
     const seenSurahs = new Set();
+
     verses.forEach(v => {
-      const surahNum = parseInt(v.verse_key.split(':')[0], 10);
-      seenSurahs.add(surahNum);
+      const surahNum =
+        parseInt(
+          v.verse_key.split(':')[0],
+          10
+        );
+
+      seenSurahs.add(
+        surahNum
+      );
     });
 
-    const seenSurahsArray = Array.from(seenSurahs).sort((a, b) => a - b);
+    const seenSurahsArray =
+      Array.from(seenSurahs).sort(
+        (a, b) => a - b
+      );
 
-    const sortedLineEntries = Array.from(linesMap.entries()).sort(
-      (a, b) => a[0] - b[0]
-    );
+    const sortedLineEntries =
+      Array.from(
+        linesMap.entries()
+      ).sort(
+        (a, b) => a[0] - b[0]
+      );
 
-    const lastLineNumber = sortedLineEntries.length
-      ? sortedLineEntries[sortedLineEntries.length - 1][0]
-      : 1;
+    const lastLineNumber =
+      sortedLineEntries.length
+        ? sortedLineEntries[
+        sortedLineEntries.length - 1
+        ][0]
+        : 1;
 
     // Juz calculation
     const juzStartPages = [
-      1, 22, 42, 62, 82, 102, 122, 142, 162, 182,
-      202, 222, 242, 262, 282, 302, 322, 342, 362,
-      382, 402, 422, 442, 462, 482, 502, 522, 542,
-      562, 582
+      1, 22, 42, 62, 82, 102, 122, 142,
+      162, 182, 202, 222, 242, 262, 282,
+      302, 322, 342, 362, 382, 402, 422,
+      442, 462, 482, 502, 522, 542, 562,
+      586
     ];
-    window.juzNumber = juzStartPages.filter(p => p <= pageNumber).length;
-    document.getElementById('juz-label').textContent = `Juz' ${window.juzNumber}`;
+
+    window.juzNumber =
+      juzStartPages.filter(
+        p => p <= pageNumber
+      ).length;
+
+    const juzGlyphs = [
+      '\uE900',
+      '\uE901',
+      '\uE902',
+      '\uE903',
+      '\uE904',
+      '\uE905',
+      '\uE906',
+      '\uE907',
+      '\uE908',
+      '\uE909',
+      '\uE90A',
+      '\uE90B',
+      '\uE90C',
+      '\uE90D',
+      '\uE90E',
+      '\uE90F',
+      '\uE910',
+      '\uE911',
+      '\uE912',
+      '\uE913',
+      '\uE914',
+      '\uE915',
+      '\uE916',
+      '\uE917',
+      '\uE918',
+      '\uE919',
+      '\uE91A',
+      '\uE91B',
+      '\uE91C',
+      '\uE91D'
+    ];
+
+    document.getElementById(
+      'juz-label'
+    ).innerHTML =
+      `Juz' ${window.juzNumber} ` +
+      `<span class="juz-glyph">` +
+      `${juzGlyphs[
+      window.juzNumber - 1
+      ]}` +
+      `</span>`;
 
     // Surah label
-    const surahLabelParts = seenSurahsArray.map(surahNum => {
-      const surahData = chapters.find(c => c.id === surahNum);
-      const surahName = surahData?.name_simple || `Surah ${surahNum}`;
-      const numStr = String(surahNum).padStart(3, '0');
-      return `${surahName} <span class="surah-num">${numStr}</span>`;
-    });
-    surahLabelDiv.innerHTML = surahLabelParts.join(' &nbsp;-&nbsp; ');
+    const surahLabelParts =
+      seenSurahsArray.map(
+        surahNum => {
+          const surahData =
+            chapters.find(
+              c => c.id === surahNum
+            );
 
-    document.getElementById('page-footer').textContent = `${pageNumber}`;
+          const surahName =
+            surahData?.name_simple ||
+            `Surah ${surahNum}`;
 
-    const sortedLines = sortedLineEntries.map(e => e[1]);
+          const numStr =
+            String(surahNum)
+              .padStart(3, '0');
+
+          return (
+            `${surahName} ` +
+            `<span class="surah-num">` +
+            `${numStr}` +
+            `</span>`
+          );
+        }
+      );
+
+    surahLabelDiv.innerHTML =
+      surahLabelParts.join(
+        ' &nbsp;-&nbsp; '
+      );
+
+    document.getElementById(
+      'page-footer'
+    ).textContent =
+      `${pageNumber}`;
+
+    const sortedLines =
+      sortedLineEntries.map(
+        e => e[1]
+      );
 
     let currentSurah = null;
     const seenVerses = new Set();
 
-    function insertSurahHeader(surahNum) {
-      const surahData = chapters.find(c => c.id === surahNum);
-      const header = document.createElement('div');
-      header.className = 'mushaf-line surah-header';
-      header.setAttribute('role', 'button');
-      header.setAttribute('tabindex', '0');
+    function insertSurahHeader(
+      surahNum
+    ) {
+      const surahData =
+        chapters.find(
+          c => c.id === surahNum
+        );
 
-      const bg = document.createElement('div');
-      bg.className = 'surah-header-bg';
+      const header =
+        document.createElement(
+          'div'
+        );
 
-      const text = document.createElement('div');
-      text.className = 'surah-header-text';
-      const surahNumStr = String(surahNum).padStart(3, '0');
-      text.textContent = `${surahNumStr} surah`;
+      header.className =
+        'mushaf-line surah-header';
+
+      header.setAttribute(
+        'role',
+        'button'
+      );
+
+      header.setAttribute(
+        'tabindex',
+        '0'
+      );
+
+      const bg =
+        document.createElement(
+          'div'
+        );
+
+      bg.className =
+        'surah-header-bg';
+      bg.textContent = 'ò'
+
+      const text =
+        document.createElement(
+          'div'
+        );
+
+      text.className =
+        'surah-header-text';
+
+      const surahNumStr =
+        String(surahNum)
+          .padStart(3, '0');
+
+      text.textContent =
+        `${surahNumStr} surah`;
 
       header.appendChild(bg);
       header.appendChild(text);
-      header.addEventListener('click', () => {
-        showSurahInfoPopup(surahNum, surahData);
-      });
-      header.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          showSurahInfoPopup(surahNum, surahData);
+
+      header.addEventListener(
+        'click',
+        () => {
+          showSurahInfoPopup(
+            surahNum,
+            surahData
+          );
         }
-      });
-      newPage.appendChild(header);
+      );
+
+      header.addEventListener(
+        'keydown',
+        e => {
+          if (
+            e.key === 'Enter' ||
+            e.key === ' '
+          ) {
+            e.preventDefault();
+
+            showSurahInfoPopup(
+              surahNum,
+              surahData
+            );
+          }
+        }
+      );
+
+      newPage.appendChild(
+        header
+      );
     }
 
     function insertBismillah() {
-      const bLine = document.createElement('div');
-      bLine.className = 'mushaf-line bismillah word';
+      const bLine =
+        document.createElement(
+          'div'
+        );
+
+      bLine.className =
+        'mushaf-line bismillah word';
+
       bLine.textContent = '321';
-      bLine.dataset.tooltip = 'In the Name of Allah—the Most Compassionate, Most Merciful';
-      newPage.appendChild(bLine);
+
+      bLine.dataset.tooltip =
+        'In the Name of Allah—the Most Compassionate, Most Merciful';
+
+      newPage.appendChild(
+        bLine
+      );
     }
 
-    // -------- RESTORED FIRST-SURAH LOGIC --------
-    const firstLineWords = sortedLines[0];
-    const firstWord = firstLineWords?.[0];
+    // -------- FIRST-SURAH LOGIC --------
 
-    const firstWordLineNumber = firstWord ? firstWord.line_number : 1;
-    const firstSurahOfPage = firstWord
-      ? parseInt(firstWord.verseKey.split(':')[0], 10)
-      : null;
-    const firstAyahOfPage = firstWord
-      ? parseInt(firstWord.verseKey.split(':')[1], 10)
-      : null;
+    const firstLineWords =
+      sortedLines[0];
 
-    let firstSurahHandled = false;
+    const firstWord =
+      firstLineWords?.[0];
 
-    if (firstAyahOfPage === 1 && firstSurahOfPage) {
-      const surahData = chapters.find(c => c.id === firstSurahOfPage);
+    const firstWordLineNumber =
+      firstWord
+        ? firstWord.line_number
+        : 1;
 
-      if (firstWordLineNumber === 3 || (firstWordLineNumber === 2 && !surahData.bismillah_pre)) {
-        insertSurahHeader(firstSurahOfPage);
-        if (surahData.bismillah_pre) insertBismillah();
-      } else if (firstWordLineNumber === 2) {
-        if (surahData.bismillah_pre) insertBismillah();
+    const firstSurahOfPage =
+      firstWord
+        ? parseInt(
+          firstWord.verseKey
+            .split(':')[0],
+          10
+        )
+        : null;
+
+    const firstAyahOfPage =
+      firstWord
+        ? parseInt(
+          firstWord.verseKey
+            .split(':')[1],
+          10
+        )
+        : null;
+
+    let firstSurahHandled =
+      false;
+
+    if (
+      firstAyahOfPage === 1 &&
+      firstSurahOfPage
+    ) {
+      const surahData =
+        chapters.find(
+          c =>
+            c.id === firstSurahOfPage
+        );
+
+      if (
+        firstWordLineNumber === 3 ||
+        (
+          firstWordLineNumber === 2 &&
+          !surahData.bismillah_pre
+        )
+      ) {
+        insertSurahHeader(
+          firstSurahOfPage
+        );
+
+        if (
+          surahData.bismillah_pre
+        ) {
+          insertBismillah();
+        }
+      } else if (
+        firstWordLineNumber === 2
+      ) {
+        if (
+          surahData.bismillah_pre
+        ) {
+          insertBismillah();
+        }
       }
 
-      currentSurah = firstSurahOfPage;
-      firstSurahHandled = true;
+      currentSurah =
+        firstSurahOfPage;
+
+      firstSurahHandled =
+        true;
     }
 
     // -------- RENDER LINES --------
-    sortedLines.forEach(lineWords => {
 
-      for (const w of lineWords) {
-        if (!seenVerses.has(w.verseKey)) {
-          seenVerses.add(w.verseKey);
+    sortedLines.forEach(
+      lineWords => {
+        for (
+          const w of lineWords
+        ) {
+          if (
+            !seenVerses.has(
+              w.verseKey
+            )
+          ) {
+            seenVerses.add(
+              w.verseKey
+            );
 
-          const surahNum = parseInt(w.verseKey.split(':')[0], 10);
-          const ayahNum = parseInt(w.verseKey.split(':')[1], 10);
+            const surahNum =
+              parseInt(
+                w.verseKey
+                  .split(':')[0],
+                10
+              );
 
-          if (surahNum !== currentSurah) {
-            currentSurah = surahNum;
+            const ayahNum =
+              parseInt(
+                w.verseKey
+                  .split(':')[1],
+                10
+              );
 
-            if (ayahNum === 1) {
-              const surahData = chapters.find(c => c.id === surahNum);
+            if (
+              surahNum !== currentSurah ||
+              surahNum === 2 ||
+              surahNum === 1
+            ) {
+              currentSurah =
+                surahNum;
 
-              if (!firstSurahHandled || surahNum !== firstSurahOfPage) {
-                insertSurahHeader(surahNum);
-                if (surahData.bismillah_pre) insertBismillah();
+              if (
+                ayahNum === 1
+              ) {
+                const surahData =
+                  chapters.find(
+                    c =>
+                      c.id === surahNum
+                  );
+
+                if (
+                  !firstSurahHandled ||
+                  surahNum !==
+                  firstSurahOfPage ||
+                  surahNum === 2 ||
+                  surahNum === 1
+                ) {
+                  insertSurahHeader(
+                    surahNum
+                  );
+
+                  if (
+                    surahData.bismillah_pre
+                  ) {
+                    insertBismillah();
+                  }
+                }
               }
             }
           }
         }
-      }
 
-      const lineDiv = document.createElement('div');
-      lineDiv.className = 'mushaf-line';
+        const textDiv =
+          document.createElement(
+            'div'
+          );
 
-      lineWords.forEach(word => {
-        const span = document.createElement('span');
-        span.className = 'word';
-        span.textContent = word.text;
-        span.style.fontFamily = fontName;
-        const tooltipMode = localStorage.getItem('mushaf-tooltip-mode') || 'translation';
+        textDiv.className =
+          'mushaf-text';
 
-        if (tooltipMode === 'translation') {
-          span.dataset.tooltip = word.translation?.text || '';
-        } else if (tooltipMode === 'transliteration') {
-          span.dataset.tooltip = word.transliteration?.text || '';
-        } else {
-          span.dataset.tooltip = '';
-        }
-        span.__verseKey = word.verseKey;
+        const lineDiv =
+          document.createElement(
+            'div'
+          );
 
-        verseMap.get(word.verseKey).push(span);
+        const lastWordOfLine =
+          lineWords[
+          lineWords.length - 1
+          ];
 
-        span.addEventListener('click', () => {
-          if (word.position && word.verseKey) {
+        const lineSurahNum =
+          parseInt(
+            lastWordOfLine.verseKey
+              .split(':')[0],
+            10
+          );
 
-            const [surahRaw, ayahRaw] = word.verseKey.split(':');
+        const lineAyahNum =
+          parseInt(
+            lastWordOfLine.verseKey
+              .split(':')[1],
+            10
+          );
 
-            const surahNum = surahRaw.padStart(3, '0');
-            const verseNum = ayahRaw.padStart(3, '0');
-            const wordPos = word.position.toString().padStart(3, '0');
+        const surahData =
+          chapters.find(
+            c =>
+              c.id === lineSurahNum
+          );
 
-            const audioUrl = `https://audio.qurancdn.com/wbw/${surahNum}_${verseNum}_${wordPos}.mp3`;
+        const isLastRenderedLineOfSurah =
+          surahData &&
+          lineAyahNum ===
+          surahData.verses_count &&
+          lineWords ===
+          sortedLines[sortedLines.length - 1];
 
-            globalAudio.src = audioUrl;
-            globalAudio.play().catch(() => { });
+        lineDiv.className =
+          isLastRenderedLineOfSurah
+            ? 'mushaf-line'
+            : 'mushaf-line justified';
+
+        lineWords.forEach(
+          word => {
+            const span =
+              document.createElement(
+                'span'
+              );
+
+            span.className =
+              'word';
+
+            span.textContent =
+              word.text;
+
+            span.style.fontFamily =
+              fontName;
+
+            const tooltipMode =
+              localStorage.getItem(
+                'mushaf-tooltip-mode'
+              ) ||
+              'translation';
+
+            if (
+              tooltipMode ===
+              'translation'
+            ) {
+              span.dataset.tooltip =
+                word.translation?.text ||
+                '';
+            } else if (
+              tooltipMode ===
+              'transliteration'
+            ) {
+              span.dataset.tooltip =
+                word.transliteration?.text ||
+                '';
+            } else {
+              span.dataset.tooltip =
+                '';
+            }
+
+            span.__verseKey =
+              word.verseKey;
+
+            verseMap
+              .get(word.verseKey)
+              .push(span);
+
+            span.addEventListener(
+              'click',
+              () => {
+                if (
+                  word.position &&
+                  word.verseKey
+                ) {
+                  const [
+                    surahRaw,
+                    ayahRaw
+                  ] =
+                    word.verseKey.split(
+                      ':'
+                    );
+
+                  const surahNum =
+                    surahRaw.padStart(
+                      3,
+                      '0'
+                    );
+
+                  const verseNum =
+                    ayahRaw.padStart(
+                      3,
+                      '0'
+                    );
+
+                  const wordPos =
+                    word.position
+                      .toString()
+                      .padStart(
+                        3,
+                        '0'
+                      );
+
+                  const audioUrl =
+                    `https://audio.qurancdn.com/wbw/${surahNum}_${verseNum}_${wordPos}.mp3`;
+
+                  globalAudio.src =
+                    audioUrl;
+
+                  globalAudio
+                    .play()
+                    .catch(
+                      () => { }
+                    );
+                }
+              }
+            );
+
+            if (
+              word.char_type_name ===
+              'end'
+            ) {
+              span.classList.add(
+                'verse-separator'
+              );
+
+              span.addEventListener(
+                'mouseenter',
+                () => {
+                  verseMap
+                    .get(word.verseKey)
+                    .forEach(w =>
+                      w.classList.add(
+                        'highlighted'
+                      )
+                    );
+                }
+              );
+
+              span.addEventListener(
+                'mouseleave',
+                () => {
+                  verseMap
+                    .get(word.verseKey)
+                    .forEach(w =>
+                      w.classList.remove(
+                        'highlighted'
+                      )
+                    );
+                }
+              );
+            }
+
+            textDiv.appendChild(
+              span
+            );
           }
-        });
+        );
 
-        if (word.char_type_name === 'end') {
-          span.classList.add('verse-separator');
+        lineDiv.appendChild(
+          textDiv
+        );
 
-          span.addEventListener('mouseenter', () => {
-            verseMap.get(word.verseKey)
-              .forEach(w => w.classList.add('highlighted'));
-          });
-
-          span.addEventListener('mouseleave', () => {
-            verseMap.get(word.verseKey)
-              .forEach(w => w.classList.remove('highlighted'));
-          });
-        }
-
-        lineDiv.appendChild(span);
-      });
-
-      newPage.appendChild(lineDiv);
-    });
+        newPage.appendChild(
+          lineDiv
+        );
+      }
+    );
 
     // Bottom-of-page next surah header
-    if (lastLineNumber === 14) {
-      const nextPageRes = await fetch(
-        `https://api.quran.com/api/v4/verses/by_page/${pageNumber + 1}?words=true`
-      );
-      const nextPageData = await nextPageRes.json();
-      const nextPageVerses = nextPageData.verses;
+    if (
+      lastLineNumber === 14
+    ) {
+      const nextPageRes =
+        await fetch(
+          `https://api.quran.com/api/qdc/verses/by_page/${pageNumber + 1}?words=true&translation_fields=resource_name%2Clanguage_id%2Cresource_id&per_page=all&fields=text_indopak_nastaleeq%2Cchapter_id%2Chizb_number%2Ctext_imlaei_simple&translations=131&reciter=6&word_translation_language=en&mushaf=6&filter_page_words=true&word_fields=verse_key%2Cverse_id%2Cpage_number%2Clocation%2Ctext_indopak_nastaleeq%2Ctext_imlaei_simple%2Ctext_indopak%2Cqpc_uthmani_hafs`
+        );
 
-      if (nextPageVerses.length) {
-        const firstNextVerse = nextPageVerses[0];
-        const nextSurahNum = parseInt(firstNextVerse.verse_key.split(':')[0], 10);
-        const nextAyahNum = parseInt(firstNextVerse.verse_key.split(':')[1], 10);
+      const nextPageData =
+        await nextPageRes.json();
 
-        if (nextAyahNum === 1) {
-          insertSurahHeader(nextSurahNum);
+      const nextPageVerses =
+        nextPageData.verses;
+
+      if (
+        nextPageVerses.length
+      ) {
+        const firstNextVerse =
+          nextPageVerses[0];
+
+        const nextSurahNum =
+          parseInt(
+            firstNextVerse
+              .verse_key
+              .split(':')[0],
+            10
+          );
+
+        const nextAyahNum =
+          parseInt(
+            firstNextVerse
+              .verse_key
+              .split(':')[1],
+            10
+          );
+
+        if (
+          nextAyahNum === 1
+        ) {
+          insertSurahHeader(
+            nextSurahNum
+          );
         }
       }
     }
 
     // Swap DOM
-    container.replaceChildren(newPage);
+    container.replaceChildren(
+      newPage
+    );
 
-    document.body.classList.toggle('page-1', pageNumber === 1);
-    document.body.classList.toggle('page-2', pageNumber === 2);
+    /*
+     * Wait until the browser has calculated
+     * the font/layout before measuring widths.
+     */
+    requestAnimationFrame(() => {
+      normalizeMushafLineWidths();
+    });
+
+    document.body.classList.toggle(
+      'page-1',
+      pageNumber === 1
+    );
+
+    document.body.classList.toggle(
+      'page-2',
+      pageNumber === 2
+    );
 
     void newPage.offsetWidth;
-    newPage.style.opacity = '1';
+
+    newPage.style.opacity =
+      '1';
 
   } catch (err) {
     console.error(err);
-    container.textContent = ``;
+
+    container.textContent = '';
   }
 }
 
-const TOTAL_PAGES = 604;
+const TOTAL_PAGES = 610;
 window.currentPage = 1;
 window.juzNumber = 1;
 const PRELOAD_RANGE = 5;
@@ -474,11 +1232,11 @@ async function prefetchPageResources(page) {
   if (page < 1 || page > TOTAL_PAGES) return;
 
   loadFont(`p${page}-v1`,
-    `https://verses.quran.foundation/fonts/quran/hafs/v1/woff2/p${page}.woff2`
+    `https://static-cdn.tarteel.ai/qul/fonts/dk/DigitalKhattIndoPak.otf`
   ).catch(() => { });
 
   if (!pageDataCache.has(page)) {
-    fetch(`https://api.quran.com/api/v4/verses/by_page/${page}?words=true`)
+    fetch(`https://api.quran.com/api/qdc/verses/by_page/${page}?words=true&translation_fields=resource_name%2Clanguage_id%2Cresource_id&per_page=all&fields=text_indopak_nastaleeq%2Cchapter_id%2Chizb_number%2Ctext_imlaei_simple&translations=131&reciter=6&word_translation_language=en&mushaf=6&filter_page_words=true&word_fields=verse_key%2Cverse_id%2Cpage_number%2Clocation%2Ctext_indopak_nastaleeq%2Ctext_imlaei_simple%2Ctext_indopak%2Cqpc_uthmani_hafs`)
       .then(r => r.json())
       .then(json => pageDataCache.set(page, json))
       .catch(() => { });
@@ -514,6 +1272,12 @@ function changePageBy(delta) {
 }
 
 let keyPressed = false;
+
+window.addEventListener('resize', () => {
+  requestAnimationFrame(() => {
+    normalizeMushafLineWidths();
+  });
+});
 
 window.addEventListener('keydown', (e) => {
   const tgt = e.target;
