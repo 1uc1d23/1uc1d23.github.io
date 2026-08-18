@@ -1,0 +1,992 @@
+:root {
+    --bg: #000;
+    --panel: #0a0a0a;
+    --text: #eee;
+    --muted-text: #b3b3b3;
+    --muted-text-2: #686868;
+    --muted-text-3: #1f1f1f;
+    --muted-bg: #ffffff05;
+    --hover: #ffffff10;
+    --border: #33333350;
+    --accent: #2ca4ab;
+    --color-transition: 260ms ease;
+    --max-img-height: 100vh;
+    --max-img-width: auto;
+    --sidebar-width: 56px;
+}
+
+.theme-sunset {
+    --bg: #fff5e4;
+    --panel: #fff5e4;
+    --text: #0a0a0a;
+    --muted-text: #333;
+    --muted-text-2: #a39789;
+    --muted-text-3: #b9a692;
+    --muted-bg: #b9a69225;
+    --hover: #b9a69225;
+    --border: #e6d5c0;
+    --accent: #72603f;
+}
+
+:root::selection {
+    background: #2ca4ab;
+    color: #f9f9f9;
+}
+
+.theme-sunset::selection {
+    background: #72603f;
+    color: #f9f9f9;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background var(--color-transition), color var(--color-transition);
+}
+
+* {
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* viewer area */
+#viewer {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: pan-y;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* single page image (centered) - drop shadow removed */
+#pageImg {
+    max-height: var(--max-img-height);
+    max-width: var(--max-img-width);
+    height: auto;
+    width: auto;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+    image-rendering: auto;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    pointer-events: none;
+    background: transparent;
+    display: block;
+    margin: auto;
+    box-shadow: none;
+    /* removed as requested */
+    transition: filter var(--color-transition);
+}
+
+/* invert main page images in dark mode, no inversion in sunset mode */
+body:not(.theme-sunset) #pageImg {
+    filter: invert(1) saturate(0.95) contrast(1);
+}
+
+body.theme-sunset #pageImg {
+    filter: none;
+}
+
+/* custom tooltip for button[title] */
+.custom-tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: var(--muted-text-3);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+    transform: translateY(6px) scale(.96);
+    opacity: 0;
+    transition: opacity 180ms ease, transform 180ms cubic-bezier(.2, .9, .2, 1);
+    z-index: 14000;
+    box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
+    will-change: transform, opacity;
+}
+
+.custom-tooltip.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+/* ===== right sidebar updated ===== */
+#rightSidebar {
+    position: fixed;
+    right: 0;
+    top: 0;
+    height: 100vh;
+    width: var(--sidebar-width);
+    transition: transform 300ms ease;
+    z-index: 11000;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding-top: 20px;
+    pointer-events: auto;
+}
+
+#rightSidebar {
+  position: fixed;
+  right: 0;
+  top: 0;
+  height: 100vh;
+  width: 56px;
+  transition: right 300ms ease;
+}
+
+body.sidebar-closed #rightSidebar {
+  right: -56px;
+}
+
+#rightSidebar .side-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+}
+
+/* smaller, transparent buttons */
+.side-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 0;
+    background-color: #ffffff00;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--muted-text);
+    padding: 9px;
+    transition: background .12s ease;
+    box-shadow: none;
+}
+
+/* icon smaller */
+.side-btn i[data-feather] {
+    width: 18px;
+    height: 18px;
+}
+
+/* subtle hover effect */
+.side-btn:hover {
+    background: var(--hover);
+}
+
+.side-btn:active {
+    transform: translateY(0);
+}
+
+/* Settings panel (top-right slide) */
+#settingsOverlay {
+    position: fixed;
+    inset: 0;
+    display: block;
+    z-index: 9998;
+    background: transparent;
+    pointer-events: none;
+}
+
+#settingsPanel {
+    position: absolute;
+    right: var(--sidebar-width);
+    transition: right 300ms ease, transform 360ms cubic-bezier(.2, .9, .2, 1), opacity 260ms ease;
+    background: var(--panel);
+    color: var(--text);
+    padding: 24px 14px;
+    width: min(320px, 92%);
+    height: 100%;
+    border: 1px solid var(--border);
+    box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
+    transform: translate(120%, 0);
+    opacity: 0;
+    will-change: transform, opacity;
+    pointer-events: auto;
+}
+
+#settingsOverlay.open {
+    pointer-events: auto;
+}
+
+#settingsOverlay.open #settingsPanel {
+    transform: translate(0, 0);
+    opacity: 1;
+}
+
+#settingsPanel h3 {
+    margin: 0 0 12px 0;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text);
+}
+
+.theme-section {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+}
+
+/* square sample buttons */
+.theme-sample {
+    width: 96px;
+    height: 96px;
+    border-radius: 8px;
+    padding: 5px;
+    border: none;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: transparent;
+}
+
+.theme-sample img {
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.theme-sample.active {
+    border: 1px solid var(--border);
+}
+
+/* labels under samples */
+.theme-labels {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 8px;
+    color: var(--muted-text-2);
+    font-size: 10px;
+}
+
+.theme-labels div {
+    width: 96px;
+    text-align: center;
+}
+
+@media (max-width:420px) {
+    .label {
+        font-size: 13px;
+        padding: 6px 8px;
+    }
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    color-scheme: dark;
+}
+
+@font-face {
+    font-family: 'SuraNames';
+    src: url('../fonts/sura_names.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+#navOverlay {
+    position: fixed;
+    inset: 0;
+    display: block;
+    z-index: 10000;
+    background: transparent;
+    pointer-events: none;
+}
+
+#navPanel {
+    position: absolute;
+    right: var(--sidebar-width);
+    transition: right 300ms ease, transform 360ms cubic-bezier(.2, .9, .2, 1), opacity 260ms ease;
+    background: var(--panel);
+    color: var(--text);
+    padding: 24px 14px;
+    width: min(320px, 92%);
+    height: 100%;
+    border: 1px solid var(--border);
+    box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
+    transform: translate(120%, 0);
+    opacity: 0;
+    will-change: transform, opacity;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* nav tabs */
+.nav-tabs {
+    align-items: center;
+    justify-content: center;
+    background: var(--muted-bg);
+    border-radius: 999px;
+    padding: 3px;
+}
+
+.nav-tab {
+    background: transparent;
+    width: 50%;
+    border: none;
+    color: var(--muted-text-2);
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 150ms ease;
+}
+
+.nav-tab:hover {
+    background-color: var(--muted-bg);
+}
+
+.nav-tab[aria-pressed="true"] {
+    background-color: var(--muted-text-3);
+    color: #fff;
+}
+
+h3 {
+    margin: 0px 2px 0px 0px;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text);
+}
+
+#navOverlay.open {
+    pointer-events: auto;
+}
+
+#navOverlay.open #navPanel {
+    transform: translate(0, 0);
+    opacity: 1;
+}
+
+/* search input */
+#navSearch {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    outline: none;
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+#navSearch::placeholder {
+    color: var(--muted-text-2);
+}
+
+/* remove browser-specific "clear" / "x" on search inputs */
+#navSearch::-webkit-search-decoration,
+#navSearch::-webkit-search-cancel-button,
+#navSearch::-webkit-search-results-button,
+#navSearch::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}
+
+#navSearch::-ms-clear,
+#navSearch::-ms-reveal {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+/* list container with fixed height and scroll */
+.nav-list {
+    overflow: auto;
+    padding: 6px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    box-sizing: border-box;
+    height: 85vh;
+    /* fixed height as requested */
+    width: 100%;
+    /* responsive width but fixed height */
+}
+
+/* scrollbar theming */
+.nav-list::-webkit-scrollbar {
+    width: 0px;
+    height: 10px;
+}
+
+.nav-list::-webkit-scrollbar-thumb {
+    display: none;
+}
+
+body.theme-sunset .nav-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.nav-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.small-num {
+    font-family: "SuraNames";
+    display: flex;
+    padding-right: 5px;
+    font-size: 14px;
+}
+
+/* surah item layout - uniform sizes and consistent alignment */
+.surah-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 10px;
+    padding: 0;
+    /* reset padding so children control spacing uniformly */
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 160ms ease;
+    height: 64px;
+    box-sizing: border-box;
+    padding-left: 10px;
+    padding-right: 10px;
+    overflow: hidden;
+}
+
+/* left section: name + verses - aligned to left and takes remaining space */
+.surah-left {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    /* vertically center content within the fixed item height */
+    align-items: flex-start;
+    /* ensure left alignment */
+    gap: 2px;
+    padding-left: 5px;
+}
+
+/* surah name + number row: keep close together */
+.surah-title-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    width: 100%;
+}
+
+/* surah name */
+.surah-name {
+    font-size: 14px;
+    color: var(--text);
+}
+
+/* surah number rendered with SuraNames font (3-digit) - kept close to name */
+.surah-num {
+    font-family: 'SuraNames', Inter, system-ui;
+    font-size: 16px;
+    /* slightly reduced so it doesn't dominate */
+    line-height: 1;
+    color: var(--text);
+    width: 40px;
+    /* fixed width for consistent spacing */
+    text-align: left;
+    flex: 0 0 40px;
+    margin-left: 0;
+    /* no extra space */
+}
+
+/* verses count muted */
+.surah-verses {
+    display: flex;
+    font-size: 12px;
+    color: var(--muted-text-2);
+    line-height: 1;
+}
+
+/* right section: start page - fixed width and vertically centered */
+.surah-page {
+    width: 30px;
+    text-align: center;
+    color: var(--muted-text-2);
+    font-weight: 300;
+    font-size: 14px;
+}
+
+.surah-item:hover {
+    border-color: var(--border);
+    outline: none;
+}
+
+.bm-item:hover {
+    border-color: var(--border);
+    outline: none;
+}
+
+/* ensure small screens are okay */
+@media (max-width:420px) {
+    #navPanel {
+        width: calc(100% - 28px);
+        left: 14px;
+        right: 14px;
+        top: 12px;
+    }
+
+    .surah-num {
+        font-size: 16px;
+        width: 36px;
+        flex: 0 0 36px;
+    }
+
+    .surah-page {
+        width: 44px;
+        flex: 0 0 44px;
+        font-size: 13px;
+    }
+
+    .nav-list {
+        height: 320px;
+    }
+}
+
+.bookmark-icon {
+    position: absolute;
+    transform: translate(-50%, 0);
+    left: 50%;
+    top: 3px;
+    width: 30px;
+    height: 30px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    pointer-events: auto;
+    user-select: none;
+}
+
+.bookmark-icon.visible {
+    display: flex;
+}
+
+.bookmark-icon svg {
+    width: 12px;
+    height: 12px;
+    transition: filter 160ms ease;
+}
+
+/* invert on sunset for contrast */
+body.theme-sunset .bookmark-icon img {
+    filter: invert(1) saturate(0.9) contrast(1);
+}
+
+body.sidebar-closed {
+    --sidebar-width: 0px;
+}
+
+/* Bookmarks panel */
+#bmOverlay {
+    position: fixed;
+    inset: 0;
+    display: block;
+    z-index: 10001;
+    background: transparent;
+    pointer-events: none;
+}
+
+#bmPanel {
+    position: absolute;
+    right: var(--sidebar-width);
+    transition: right 300ms ease, transform 360ms cubic-bezier(.2, .9, .2, 1), opacity 260ms ease;
+    background: var(--panel);
+    color: var(--text);
+    padding: 24px 14px;
+    width: min(320px, 92%);
+    height: 100%;
+    border: 1px solid var(--border);
+    box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
+    transform: translate(120%, 0);
+    opacity: 0;
+    will-change: transform, opacity;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#bmOverlay.open {
+    pointer-events: auto;
+}
+
+#bmOverlay.open #bmPanel {
+    transform: translate(0, 0);
+    opacity: 1;
+}
+
+.bm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.bm-sub {
+    margin-top: 2px;
+    margin-bottom: 0px;
+    font-size: 13px;
+    color: var(--muted-text-2);
+}
+
+.bm-actions {
+    display: flex;
+    align-items: center;
+}
+
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    color: var(--muted-text);
+}
+
+.icon-btn svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+    transition: color 200ms ease;
+}
+
+.icon-btn:hover {
+    color: var(--accent);
+}
+
+/* Bookmark list item (re-using .surah-item style as base but simpler) */
+.bm-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 14px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    background: transparent;
+    cursor: pointer;
+    transition: border-color 160ms ease;
+}
+
+.bm-item:last-child {
+    margin-bottom: 0;
+}
+
+.bm-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.bm-name {
+    font-size: 14px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bm-page {
+    text-align: center;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 300;
+    min-width: 20px;
+}
+
+.bm-delete-btn {
+    background: transparent;
+    border: 0;
+    color: #ff6b6b;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+}
+
+/* delete mode styling: show delete buttons when active */
+.bm-item.deletable {
+    border-color: rgba(255, 80, 80, 0.12);
+    transform: none;
+    transition: background-color 200ms ease;
+}
+
+.bm-item.deletable:hover {
+    background-color: rgba(255, 80, 80, 0.12);
+    transform: none;
+}
+
+a:focus,
+button:focus,
+input:focus,
+select:focus,
+[tabindex]:focus {
+    outline: none;
+}
+
+/* ---------- Prompt overlay (blur background) ---------- */
+#bmPromptOverlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    z-index: 11000;
+    align-items: center;
+    justify-content: center;
+}
+
+#bmPromptOverlay.open {
+    display: flex;
+}
+
+#bmPrompt {
+    width: min(420px, 92%);
+    background: var(--panel);
+    color: var(--text);
+    padding: 18px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 0px 5px rgba(0, 0, 0, 0.05);
+    transform: translateY(-10px);
+    opacity: 0;
+    transition: transform 220ms ease, opacity 200ms ease;
+}
+
+#bmPromptOverlay.open #bmPrompt {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+#bmPrompt h4 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+}
+
+#bmNameInput {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: 14px;
+    box-sizing: border-box;
+    outline: none;
+    margin-bottom: 12px;
+}
+
+.bmPromptActions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.bmPromptActions button {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 0;
+    cursor: pointer;
+    transition: opacity 200ms ease;
+}
+
+.bmPromptActions button:first-child {
+    background: transparent;
+    color: var(--muted-text-2);
+}
+
+.bmPromptActions button:last-child {
+    background: var(--accent);
+    color: #fff;
+}
+
+.bmPromptActions button:hover {
+    opacity: 70%;
+}
+
+/* blur backdrop for page while prompt open */
+#bmPromptOverlay.open::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    z-index: -1;
+}
+
+/* small screens */
+@media (max-width:420px) {
+    .bookmark-icon {
+        left: 10px;
+        bottom: 12px;
+        width: 36px;
+        height: 36px;
+    }
+
+    .bookmark-icon img {
+        width: 20px;
+        height: 20px;
+    }
+
+    #bmPanel {
+        width: calc(100% - 28px);
+        left: 14px;
+        right: 14px;
+        top: 12px;
+    }
+}
+
+#audioOverlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 12000;
+}
+
+#audioPanel {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    width: min(320px, 92%);
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    transform: translateY(100%);
+    opacity: 0;
+    transition: opacity 240ms ease, transform 240ms cubic-bezier(.2, .9, .2, 1);
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: left;
+    text-align: left;
+}
+
+#audioOverlay.open #audioPanel {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.sura-heading {
+    display: flex;
+    font-size: 16px;
+    margin: 0;
+    font-weight: 600;
+    align-items: center;
+    color: var(--text);
+}
+
+.audio-num {
+    font-family: 'SuraNames', system-ui, Inter;
+    font-size: 16px;
+    font-weight: 500;
+    padding-left: 3px;
+    margin: 0;
+}
+
+.audio-sub {
+    display: flex;
+    margin-top: -6px;
+    margin-bottom: 0;
+    font-size: 13px;
+    color: var(--muted-text-2);
+    align-items: center;
+}
+
+.audio-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.audio-controls .icon-btn {
+    width: 80px;
+    height: 20px;
+    border-radius: 8px;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    transition: opacity 200ms ease;
+}
+
+.audio-controls .icon-btn svg {
+    width: 40%;
+    height: 100%;
+    fill: var(--accent);
+}
+
+#audioPlayPause {
+    height: 44px;
+}
+
+.reciter-img {
+    position: absolute;
+    right: 0;
+    top: 0;
+    padding-right: 10px;
+    width: 40px;
+    filter: brightness(20%);
+}
+
+.reciter {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    right: 0;
+    padding-right: 10px;
+    justify-content: center;
+    display: flex;
+}
+
+.audio-verse-label {
+    position: relative;
+    font-size: 18px;
+    color: var(--muted-text);
+    margin: auto;
+    z-index: 1;
+}
+
+.audio-controls .icon-btn:hover {
+    opacity: .7;
+}
