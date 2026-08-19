@@ -161,7 +161,7 @@ async function loadFont(name, url) {
 
 function normalizeMushafLineWidths() {
   const LINE_WIDTH_VW = 28;
-  const LINE_WIDTH = window.innerWidth * (LINE_WIDTH_VW / 100);
+  const LINE_WIDTH = 1250 * (LINE_WIDTH_VW / 100);
   const BASE_GAP = '0.3vw';
 
   const lines = [
