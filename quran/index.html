@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" dir="rtl" translate="no">
 <head>
@@ -10,13 +9,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- External CSS -->
-  <link rel="stylesheet" href="../styles.css">
-  <meta name="description" content="A free Quran web app featuring a book-like Mushaf reading view for a natural, comfortable, and distraction-free Quran reading experience.">
-  <meta property="og:title" content="Read Quran Online - Free Mushaf Reader">
-<meta property="og:description" content="Experience the Holy Quran with a natural book-like Mushaf interface. Free, responsive, and distraction-free.">
-<meta property="og:type" content="website">
-<meta name="keywords" content="Quran, Holy Quran, Al Quran, Quran Online, Read Quran Online, Free Quran, Digital Quran, Quran Web App, Quran Reader, Online Mushaf, Mushaf, Book-Like Mushaf, Quran Reading, Quran Study, Quran Memorization, Hifz Quran, Learn Quran, Quran Translation, Quran Tafsir, Arabic Quran, Islamic App, Islamic Website, Muslim Resources, Surah, Ayah, Juz, Hizb, Madinah Mushaf, Uthmani Script, Quran Pages, Responsive Quran, Mobile Quran, Desktop Quran, Beautiful Quran Reader, Clean Quran Interface, Distraction-Free Quran, Best Quran Reader, Authentic Quran, Free Islamic Resources">
-
+  <link rel="stylesheet" href="styles.css">
+  
   <title>Al-Qur'an</title>
 </head>
 
@@ -34,13 +28,13 @@
                 <span class="theme-swatch-half theme-swatch-accent"></span>
               </span>
             </button>
-            <button class="theme-sample sample-sunset" id="btnSunset" aria-pressed="false" aria-label="Sunset theme preview">
+            <button class="theme-sample sample-light" id="btnLight" aria-pressed="false" aria-label="Light theme preview">
               <span class="theme-swatch" aria-hidden="true">
                 <span class="theme-swatch-half theme-swatch-bg"></span>
                 <span class="theme-swatch-half theme-swatch-accent"></span>
               </span>
             </button>
-            <button class="theme-sample sample-rose-gold" id="btnRoseGold" aria-pressed="false" aria-label="Rose gold theme preview">
+            <button class="theme-sample sample-sunset" id="btnSunset" aria-pressed="false" aria-label="Sunset theme preview">
               <span class="theme-swatch" aria-hidden="true">
                 <span class="theme-swatch-half theme-swatch-bg"></span>
                 <span class="theme-swatch-half theme-swatch-accent"></span>
@@ -49,8 +43,8 @@
           </div>
           <div class="theme-labels">
             <div>Dark</div>
+            <div>Light</div>
             <div>Sunset</div>
-            <div>Rose Gold</div>
           </div>
         </div>
         <div class="section" style="margin-top: 25px;">
@@ -126,9 +120,13 @@
         <button id="tabPage" class="nav-tab" type="button" aria-pressed="false">Page</button>
       </div>
 
-      <div style="margin-top:4px;">
+      <div class="nav-search-wrap">
         <input id="navSearch" type="search" placeholder="Try typing Ya-Sin or 36 ..." autocomplete="off"/>
+        <button id="navMicBtn" class="nav-mic-btn" type="button" title="Search by voice" aria-label="Search by voice">
+          <i data-lucide="mic"></i>
+        </button>
       </div>
+      <div id="navAudioResults" class="nav-audio-results" aria-live="polite"></div>
 
       <div id="navList" class="nav-list" role="region" aria-live="polite" tabindex="0">
         <!-- Surah buttons rendered by script.js -->
@@ -171,10 +169,12 @@
     <div id="page-footer" class="page-footer"></div>
   </div>
 
-  <script src="../js/main.js"></script>
-  <script src="../js/page.js"></script>
-  <script src="../js/settings.js"></script>
-  <script src="../js/navigation.js"></script>
-  <script src="../js/bookmarks.js"></script>
-  
+  <!-- External JS -->
+  <script src="js/main.js"></script>
+  <script src="js/page.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/navigation.js"></script>
+  <script src="js/bookmarks.js"></script>
+</body>
+
 </html>
