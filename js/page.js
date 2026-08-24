@@ -554,6 +554,74 @@
     }, true);
   }
 
+  function attachSurahScrollHandler(pageList) {
+  if (!pageList || !contentWrapper) return;
+
+  const updateSurahLabel = async () => {
+    const items = Array.from(
+      pageList.querySelectorAll('.verse-modal-item[data-verse-key]')
+    );
+
+    if (!items.length) return;
+
+    const wrapperRect = contentWrapper.getBoundingClientRect();
+
+    // Find the last verse block that has reached/passed the top
+    // of the visible scrolling area.
+    let activeItem = items[0];
+
+    for (const item of items) {
+      const rect = item.getBoundingClientRect();
+
+      if (rect.top <= wrapperRect.top + 20) {
+        activeItem = item;
+      } else {
+        break;
+      }
+    }
+
+    const verseKey = activeItem.dataset.verseKey;
+    if (!verseKey) return;
+
+    const [surahNum] = verseKey.split(':');
+    const surah = Number(surahNum);
+
+   let chaptersCache = null;
+
+async function getChapters() {
+  if (chaptersCache) return chaptersCache;
+
+  try {
+    const res = await fetch('https://api.quran.com/api/v4/chapters');
+    const data = await res.json();
+    chaptersCache = Array.isArray(data.chapters) ? data.chapters : [];
+    return chaptersCache;
+  } catch {
+    return [];
+  }
+}
+
+    const chapters = await getChapters();
+const surahData = chapters.find(chapter => chapter.id === surah);
+const surahName = surahData?.name_simple || `Surah ${surah}`;
+const surahNumThree = String(surah).padStart(3, '0');
+
+    header.innerHTML =
+  `Page ${window.currentPage || ''} &nbsp;&nbsp; ` +
+  `<span style="font-weight: 300 !important;">Surah ${surahName} <span style="font-family: 'SuraNames';">${surahNumThree}</span></span>`;
+  };
+
+  contentWrapper.removeEventListener('scroll', pageList.__surahScrollHandler);
+
+  pageList.__surahScrollHandler = updateSurahLabel;
+
+  contentWrapper.addEventListener('scroll', updateSurahLabel, {
+    passive: true
+  });
+
+  requestAnimationFrame(updateSurahLabel);
+}
+
   async function renderPageMode() {
     const myToken = ++renderPageToken;
     const selectorRoot = wordsContainer || document;
@@ -624,10 +692,10 @@
       pageList.appendChild(block);
     }
 
-    header.innerHTML = `Page ${window.currentPage || ''} &nbsp; <span style="font-weight: 300 !important;">Juz ${window.juzNumber || ''}</span>`;
     pageView.innerHTML = '';
-    pageView.appendChild(pageList);
-    attachPageFootnoteHandlers(pageList);
+pageView.appendChild(pageList);
+attachPageFootnoteHandlers(pageList);
+attachSurahScrollHandler(pageList);
     try { if (window.lucide) lucide.createIcons(); } catch (e) { }
 
     const pageWordMap = await fetchPageIndopakWords(window.currentPage || 1);
