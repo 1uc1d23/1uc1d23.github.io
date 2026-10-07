@@ -32,12 +32,12 @@
 }
 
 .theme-light {
-  --bg: #eee;
-  --panel: #eee;
+  --bg: #fff;
+  --panel: #fff;
   --text: #0a0a0a;
   --muted-text: #5a5a5a;
   --muted-text-2: #989898;
-  --muted-text-3: #4d4d4d2b;
+  --muted-text-3: #4d4d4d;
   --muted-bg: #d8d8d830;
   --hover: #ffffff10;
   --border: #33333322;
@@ -330,6 +330,12 @@ select:focus,
 }
 
 @font-face {
+  font-family: 'JuzNames';
+  src: url('https://static-cdn.tarteel.ai/qul/fonts/common/quran-common.ttf') format('truetype');
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Bismillah';
   src: url('assets/bismillah.ttf') format('truetype');
   font-weight: normal;
@@ -340,6 +346,12 @@ select:focus,
 @font-face {
   font-family: 'IndoPakNastaleeq';
   src: url('assets/indopak.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Noorehira';
+  src: url('assets/noorehira.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
 }
@@ -357,7 +369,7 @@ select:focus,
 
 .page-header {
   position: fixed;
-  top: 2.8cqh;
+  top: 2cqh;
   left: 50%;
   transform: translateX(-50%);
   z-index: 5;
@@ -385,8 +397,19 @@ select:focus,
 
 #juz-label,
 #surah-label {
+  display: flex;
+  flex-direction: row;
+  direction: ltr;
+  align-items: center;
+  gap:0.2vw;
   font-family: 'SFPro', sans-serif;
   font-size: 1.85cqh;
+}
+
+.juz-glyph {
+  font-family: 'JuzNames';
+  margin: 0 0.6cqh;
+  font-size: 1.5cqh;
 }
 
 #mushaf-page {
@@ -800,6 +823,8 @@ body.dark .verse-skeleton-line {
 
 .surah-num {
   font-family: 'surah-name';
+  font-size: 1.3vw;
+  margin-left: 0.1vw;
   color: var(--text);
 }
 

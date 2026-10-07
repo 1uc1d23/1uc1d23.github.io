@@ -195,36 +195,36 @@ async function renderMushafPage(pageNumber) {
     const verseMap = new Map();
     const linesMap = new Map();
 
-      function normalizeWordText(word, page) {
-        if (page === 443 && word.id === 50056 && typeof word.text === 'string') {
-          const firstToken = word.text.trim().split(/\s+/)[0];
-          return firstToken || word.text;
-        }
-        if (page === 454 && word.id === 27496 && typeof word.text === 'string') {
-          return 'ﯩ';
-        }
-        if (page === 454 && word.id === 27498 && typeof word.text === 'string') {
-          return 'ﯪﯫ';
-        }
-        return word.text;
+    function normalizeWordText(word, page) {
+      if (page === 443 && word.id === 50056 && typeof word.text === 'string') {
+        const firstToken = word.text.trim().split(/\s+/)[0];
+        return firstToken || word.text;
       }
+      if (page === 454 && word.id === 27496 && typeof word.text === 'string') {
+        return 'ﯩ';
+      }
+      if (page === 454 && word.id === 27498 && typeof word.text === 'string') {
+        return 'ﯪﯫ';
+      }
+      return word.text;
+    }
 
-      verses.forEach(v => {
-        verseMap.set(v.verse_key, []);
+    verses.forEach(v => {
+      verseMap.set(v.verse_key, []);
 
-        v.words.forEach(w => {
-          let correctedLineNumber = w.line_number;
+      v.words.forEach(w => {
+        let correctedLineNumber = w.line_number;
 
-          if (pageNumber === 177 && w.id === 6124 && w.line_number === 11) { correctedLineNumber = 12; }
-          if (pageNumber === 443 && w.id === 50062 && w.line_number === 12) { correctedLineNumber = 13; }
-          if (!linesMap.has(correctedLineNumber)) { linesMap.set(correctedLineNumber, []); }
+        if (pageNumber === 177 && w.id === 6124 && w.line_number === 11) { correctedLineNumber = 12; }
+        if (pageNumber === 443 && w.id === 50062 && w.line_number === 12) { correctedLineNumber = 13; }
+        if (!linesMap.has(correctedLineNumber)) { linesMap.set(correctedLineNumber, []); }
 
-          linesMap.get(correctedLineNumber).push({
-            ...w,
-            text: normalizeWordText(w, pageNumber),
-            line_number: correctedLineNumber,
-            verseKey: v.verse_key
-          });
+        linesMap.get(correctedLineNumber).push({
+          ...w,
+          text: normalizeWordText(w, pageNumber),
+          line_number: correctedLineNumber,
+          verseKey: v.verse_key
+        });
 
       });
     });
@@ -259,7 +259,17 @@ async function renderMushafPage(pageNumber) {
       562, 582
     ];
     window.juzNumber = juzStartPages.filter(p => p <= pageNumber).length;
-    document.getElementById('juz-label').textContent = `Juz' ${window.juzNumber}`;
+    const juzGlyphs = [
+      '\uE900', '\uE901', '\uE902', '\uE903', '\uE904',
+      '\uE905', '\uE906', '\uE907', '\uE908', '\uE909',
+      '\uE90A', '\uE90B', '\uE90C', '\uE90D', '\uE90E',
+      '\uE90F', '\uE910', '\uE911', '\uE912', '\uE913',
+      '\uE914', '\uE915', '\uE916', '\uE917', '\uE918',
+      '\uE919', '\uE91A', '\uE91B', '\uE91C', '\uE91D'
+    ];
+
+    document.getElementById('juz-label').innerHTML =
+      `Juz' ${window.juzNumber} <span class="juz-glyph">${juzGlyphs[window.juzNumber - 1]}</span>`;
 
     // Surah label
     const surahLabelParts = seenSurahsArray.map(surahNum => {
@@ -268,7 +278,7 @@ async function renderMushafPage(pageNumber) {
       const numStr = String(surahNum).padStart(3, '0');
       return `${surahName} <span class="surah-num">${numStr}</span>`;
     });
-    surahLabelDiv.innerHTML = surahLabelParts.join(' &nbsp;-&nbsp; ');
+    surahLabelDiv.innerHTML = surahLabelParts.join(' &nbsp;·&nbsp; ');
 
     document.getElementById('page-footer').textContent = `${pageNumber}`;
 

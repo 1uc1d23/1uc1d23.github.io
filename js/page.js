@@ -682,7 +682,7 @@ const surahNumThree = String(surah).padStart(3, '0');
 
       const hr = document.createElement('hr');
       hr.style.border = 'none';
-      hr.style.borderTop = '1px solid var(--muted-text-3)';
+      hr.style.borderTop = '1px solid var(--border)';
       hr.style.margin = '0';
       hr.style.display = i === 0 ? 'none' : 'block';
 
